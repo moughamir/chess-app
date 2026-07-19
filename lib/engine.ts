@@ -1,5 +1,43 @@
 import { Chess, ChessInstance } from 'chess.js';
-import { PIECE_VALUES, CENTER_SQUARES } from './constants';
+import { PIECE_VALUES, CENTER_SQUARES, ZOBRIST_KEYS } from './constants';
+
+const TT_SIZE = 1 << 20;
+
+enum TTFlag { EXACT, LOWER, UPPER }
+
+interface TTEntry {
+  key: bigint;
+  depth: number;
+  value: number;
+  flag: TTFlag;
+  bestMove: string | null;
+}
+
+const transpositionTable: Map<bigint, TTEntry> = new Map();
+
+export function clearTT(): void {
+  transpositionTable.clear();
+}
+
+export function computeHash(game: ChessInstance): bigint {
+  let hash = BigInt(0);
+  const board = game.board();
+  const colorIndex = game.turn() === 'w' ? 0 : 1;
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = board[r][c];
+      if (piece) {
+        const pIdx = 'pnbrqk'.indexOf(piece.type);
+        const cIdx = piece.color === 'w' ? 0 : 1;
+        const sq = r * 8 + c;
+        hash ^= ZOBRIST_KEYS[cIdx][pIdx][sq];
+      }
+    }
+  }
+
+  return hash;
+}
 
 export function evaluateBoard(game: ChessInstance, myColor: string): number {
   let totalEvaluation = 0;
@@ -95,7 +133,18 @@ export function minimax(
 ): number {
   if (depth === 0 || game.game_over()) return evaluateBoard(game, myColor);
 
+  const hash = computeHash(game);
+  const ttEntry = transpositionTable.get(hash);
+
+  if (ttEntry && ttEntry.key === hash && ttEntry.depth >= depth) {
+    if (ttEntry.flag === TTFlag.EXACT) return ttEntry.value;
+    if (ttEntry.flag === TTFlag.LOWER && ttEntry.value > alpha) alpha = ttEntry.value;
+    if (ttEntry.flag === TTFlag.UPPER && ttEntry.value < beta) beta = ttEntry.value;
+    if (alpha >= beta) return ttEntry.value;
+  }
+
   const moves = orderMoves(game, game.moves({ verbose: true }), maxDepth - depth, state);
+  let bestMove = moves[0]?.san ?? null;
 
   for (let i = 0; i < moves.length; i++) {
     game.move(moves[i].san);
@@ -105,9 +154,15 @@ export function minimax(
     game.undo();
 
     if (isMaximizing) {
-      if (val > alpha) alpha = val;
+      if (val > alpha) {
+        alpha = val;
+        bestMove = moves[i].san;
+      }
     } else {
-      if (val < beta) beta = val;
+      if (val < beta) {
+        beta = val;
+        bestMove = moves[i].san;
+      }
     }
 
     if (beta <= alpha) {
@@ -126,29 +181,58 @@ export function minimax(
       break;
     }
   }
+
+  const flag = alpha <= alpha ? (isMaximizing ? TTFlag.LOWER : TTFlag.UPPER) : TTFlag.EXACT;
+  if (transpositionTable.size < TT_SIZE || depth >= 3) {
+    transpositionTable.set(hash, { key: hash, depth, value: isMaximizing ? alpha : beta, flag, bestMove });
+  }
+
   return isMaximizing ? alpha : beta;
 }
 
-export function getBestMove(fen: string, depth: number): { bestMove: any; evaluation: number } {
+export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000): { bestMove: any; evaluation: number; depth: number } {
   const game = new Chess(fen);
   const myColor = game.turn();
   const state = createMoveScore();
+  clearTT();
 
-  const moves = orderMoves(game, game.moves({ verbose: true }), 0, state);
+  const moves = game.moves({ verbose: true });
+  if (moves.length === 0) return { bestMove: null, evaluation: 0, depth: 0 };
 
-  let bestMove = null;
+  let bestMove = moves[0];
   let bestValue = -Infinity;
+  let completedDepth = 0;
+  const startTime = Date.now();
 
-  for (let i = 0; i < moves.length; i++) {
-    game.move(moves[i].san);
-    const boardValue = minimax(game, depth - 1, -Infinity, Infinity, false, myColor, depth, state);
-    game.undo();
+  for (let d = 1; d <= maxDepth; d++) {
+    if (Date.now() - startTime > timeMs * 0.75) break;
 
-    if (boardValue > bestValue) {
-      bestValue = boardValue;
-      bestMove = moves[i];
+    const ordered = d === 1 ? orderMoves(game, moves, 0, state) : orderMoves(game, game.moves({ verbose: true }), 0, state);
+    let iterationBest = null;
+    let iterationValue = -Infinity;
+    let iterationComplete = true;
+
+    for (let i = 0; i < ordered.length; i++) {
+      if (Date.now() - startTime > timeMs * 0.9) { iterationComplete = false; break; }
+
+      game.move(ordered[i].san);
+      const val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state);
+      game.undo();
+
+      if (val > iterationValue) {
+        iterationValue = val;
+        iterationBest = ordered[i];
+      }
     }
+
+    if (iterationComplete && iterationBest) {
+      bestMove = iterationBest;
+      bestValue = iterationValue;
+      completedDepth = d;
+    }
+
+    if (iterationValue > 9000 || iterationValue < -9000) break;
   }
 
-  return { bestMove, evaluation: bestValue };
+  return { bestMove, evaluation: bestValue, depth: completedDepth };
 }

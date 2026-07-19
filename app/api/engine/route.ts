@@ -5,7 +5,7 @@ import { generateExplanation } from '@/lib/explanations';
 
 export async function POST(request: NextRequest) {
   try {
-    const { fen, depth = 3 } = await request.json();
+    const { fen, depth = 5, timeMs = 5000 } = await request.json();
 
     if (!fen) {
       return NextResponse.json({ error: 'FEN is required' }, { status: 400 });
@@ -16,9 +16,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Game is over' }, { status: 400 });
     }
 
-    const rawDepth = Number(depth) || 3;
-    const clampedDepth = Math.min(Math.max(1, rawDepth), 5);
-    const { bestMove, evaluation } = getBestMove(fen, clampedDepth);
+    const rawDepth = Number(depth) || 5;
+    const clampedDepth = Math.min(Math.max(1, rawDepth), 8);
+    const { bestMove, evaluation, depth: searchDepth } = getBestMove(fen, clampedDepth, Number(timeMs) || 5000);
     if (!bestMove) {
       return NextResponse.json({ error: 'No moves available' }, { status: 400 });
     }
@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
       bestMove: bestMove.from + bestMove.to,
       san: bestMove.san,
       explanation,
-      evaluation: Math.round(evaluation)
+      evaluation: Math.round(evaluation),
+      depth: searchDepth
     });
   } catch (error) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
