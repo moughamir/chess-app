@@ -7,7 +7,8 @@ const TT_MASK = TT_SIZE - 1;
 enum TTFlag { EXACT, LOWER, UPPER }
 
 interface TTEntry {
-  key: number;
+  keyLow: number;
+  keyHigh: number;
   depth: number;
   value: number;
   flag: TTFlag;
@@ -15,12 +16,24 @@ interface TTEntry {
 }
 
 const tt: TTEntry[] = new Array(TT_SIZE);
+const ttKeyLow: Int32Array = new Int32Array(TT_SIZE);
+const ttKeyHigh: Int32Array = new Int32Array(TT_SIZE);
+const ttDepth: Int8Array = new Int8Array(TT_SIZE);
+const ttValue: Int32Array = new Int32Array(TT_SIZE);
+const ttFlag: Uint8Array = new Uint8Array(TT_SIZE);
+const ttBestMoveArr: (string | null)[] = new Array(TT_SIZE);
 
 export function clearTT(): void {
-  tt.fill(undefined as any);
+  ttKeyLow.fill(0);
+  ttKeyHigh.fill(0);
+  ttDepth.fill(0);
+  ttValue.fill(0);
+  ttFlag.fill(0);
+  ttBestMoveArr.fill(null);
 }
 
 const CENTER_MASK = (1 << 27) | (1 << 28) | (1 << 35) | (1 << 36);
+const ZOBRIST_SIDE = BigInt(1) << BigInt(640);
 
 function computeHash(game: ChessInstance): bigint {
   let hash = BigInt(0);
@@ -38,12 +51,46 @@ function computeHash(game: ChessInstance): bigint {
     }
   }
 
-  if (game.turn() === 'b') hash ^= BigInt(1) << BigInt(640);
+  if (game.turn() === 'b') hash ^= ZOBRIST_SIDE;
   return hash;
 }
 
 function ttIndex(hash: bigint): number {
   return Number(hash & BigInt(TT_MASK));
+}
+
+function ttSplitHash(hash: bigint): [number, number] {
+  const lo = Number(hash & BigInt(0xFFFFFFFF));
+  const hi = Number((hash >> BigInt(32)) & BigInt(0xFFFFFFFF));
+  return [lo, hi];
+}
+
+function ttRead(hash: bigint): { found: boolean; depth: number; value: number; flag: TTFlag; bestMove: string | null } {
+  const idx = ttIndex(hash);
+  const [lo, hi] = ttSplitHash(hash);
+  if (ttKeyLow[idx] === lo && ttKeyHigh[idx] === hi) {
+    return {
+      found: true,
+      depth: ttDepth[idx],
+      value: ttValue[idx],
+      flag: ttFlag[idx] as TTFlag,
+      bestMove: ttBestMoveArr[idx],
+    };
+  }
+  return { found: false, depth: 0, value: 0, flag: TTFlag.EXACT, bestMove: null };
+}
+
+function ttWrite(hash: bigint, depth: number, value: number, flag: TTFlag, bestMove: string | null): void {
+  const idx = ttIndex(hash);
+  const [lo, hi] = ttSplitHash(hash);
+  if (!ttKeyLow[idx] || depth >= ttDepth[idx]) {
+    ttKeyLow[idx] = lo;
+    ttKeyHigh[idx] = hi;
+    ttDepth[idx] = depth;
+    ttValue[idx] = value;
+    ttFlag[idx] = flag;
+    ttBestMoveArr[idx] = bestMove;
+  }
 }
 
 export function evaluateBoard(game: ChessInstance, myColor: string): number {
@@ -61,18 +108,10 @@ export function evaluateBoard(game: ChessInstance, myColor: string): number {
     }
   }
 
-  const availableMoves = game.moves().length;
-  const oppColor = myColor === 'w' ? 'b' : 'w';
-  if (game.turn() === oppColor) {
-    totalEvaluation += (100 - availableMoves) * 0.5;
-  } else {
-    totalEvaluation -= (100 - availableMoves) * 0.5;
-  }
-
   if (game.in_checkmate()) {
-    return game.turn() === oppColor ? 10000 : -10000;
+    return game.turn() === myColor ? -10000 : 10000;
   } else if (game.in_check()) {
-    totalEvaluation += game.turn() === oppColor ? 50 : -50;
+    totalEvaluation += game.turn() === myColor ? -50 : 50;
   }
 
   return totalEvaluation;
@@ -89,20 +128,16 @@ export function createMoveScore(maxDepth: number = 8): MoveScore {
   return { killers, historyTable: {} };
 }
 
-function isCheck(move: any, game: ChessInstance): boolean {
-  const CHECK_FLAGS = 'pnbrqk'.includes(move.piece) && (move.san.includes('+') || move.san.includes('#'));
-  return move.san.endsWith('+') || move.san.endsWith('#');
-}
-
-function isMate(move: any): boolean {
-  return move.san.endsWith('#');
-}
-
-export function scoreMove(
+function scoreMove(
   move: any,
   depth: number,
-  state: MoveScore
+  state: MoveScore,
+  ttBestMove: string | null
 ): number {
+  const key = move.from + move.to;
+
+  if (ttBestMove && key === ttBestMove) return 100000;
+
   let score = 0;
 
   if (move.captured) {
@@ -116,26 +151,70 @@ export function scoreMove(
 
   if (move.promotion) score += 8000;
 
-  const killerKey = move.from + move.to;
   if (state.killers[depth]) {
-    if (state.killers[depth][0] === killerKey) score += 9000;
-    else if (state.killers[depth][1] === killerKey) score += 8500;
+    if (state.killers[depth][0] === key) score += 9000;
+    else if (state.killers[depth][1] === key) score += 8500;
   }
 
-  if (state.historyTable[killerKey]) {
-    score += Math.min(state.historyTable[killerKey], 8000);
+  if (state.historyTable[key]) {
+    score += Math.min(state.historyTable[key], 8000);
   }
 
   return score;
 }
 
-export function orderMoves(
-  game: ChessInstance,
+function orderMoves(
   moves: any[],
   depth: number,
-  state: MoveScore
+  state: MoveScore,
+  ttBestMove: string | null
 ): any[] {
-  return [...moves].sort((a, b) => scoreMove(b, depth, state) - scoreMove(a, depth, state));
+  return [...moves].sort((a, b) => scoreMove(b, depth, state, ttBestMove) - scoreMove(a, depth, state, ttBestMove));
+}
+
+function applyIncrementalHash(hash: bigint, move: any, game: ChessInstance): bigint {
+  const colorIdx = move.color === 'w' ? 0 : 1;
+  const pieceIdx = 'pnbrqk'.indexOf(move.piece);
+  const fromSq = 'abcdefgh'.indexOf(move.from[0]) + (8 - parseInt(move.from[1])) * 8;
+  const toSq = 'abcdefgh'.indexOf(move.to[0]) + (8 - parseInt(move.to[1])) * 8;
+
+  hash ^= ZOBRIST_KEYS[colorIdx][pieceIdx][fromSq];
+  hash ^= ZOBRIST_KEYS[colorIdx][pieceIdx][toSq];
+
+  if (move.captured) {
+    const capIdx = 'pnbrqk'.indexOf(move.captured);
+    hash ^= ZOBRIST_KEYS[1 - colorIdx][capIdx][toSq];
+  }
+
+  if (move.promotion) {
+    const promoIdx = 'pnbrqk'.indexOf(move.promotion);
+    hash ^= ZOBRIST_KEYS[colorIdx]['p'.charCodeAt(0) - 'p'.charCodeAt(0)][toSq];
+    hash ^= ZOBRIST_KEYS[colorIdx][promoIdx][toSq];
+  }
+
+  if (move.flags.includes('e')) {
+    const epSq = toSq + (move.color === 'w' ? 8 : -8);
+    hash ^= ZOBRIST_KEYS[1 - colorIdx][0][epSq];
+  }
+
+  if (move.flags.includes('k')) {
+    const rookFrom = move.color === 'w' ? 63 : 61;
+    const rookTo = move.color === 'w' ? 61 : 63;
+    const rookIdx = 'r'.charCodeAt(0) - 'p'.charCodeAt(0);
+    hash ^= ZOBRIST_KEYS[colorIdx][rookIdx][rookFrom];
+    hash ^= ZOBRIST_KEYS[colorIdx][rookIdx][rookTo];
+  }
+
+  if (move.flags.includes('q')) {
+    const rookFrom = move.color === 'w' ? 56 : 59;
+    const rookTo = move.color === 'w' ? 59 : 56;
+    const rookIdx = 'r'.charCodeAt(0) - 'p'.charCodeAt(0);
+    hash ^= ZOBRIST_KEYS[colorIdx][rookIdx][rookFrom];
+    hash ^= ZOBRIST_KEYS[colorIdx][rookIdx][rookTo];
+  }
+
+  hash ^= ZOBRIST_SIDE;
+  return hash;
 }
 
 export function minimax(
@@ -146,58 +225,59 @@ export function minimax(
   isMaximizing: boolean,
   myColor: string,
   maxDepth: number,
-  state: MoveScore
+  state: MoveScore,
+  hash: bigint
 ): number {
   if (depth === 0 || game.game_over()) return evaluateBoard(game, myColor);
 
-  const hash = computeHash(game);
-  const idx = ttIndex(hash);
-  const entry = tt[idx];
+  const ttHit = ttRead(hash);
 
-  if (entry && entry.key === Number(hash & BigInt(0xFFFFFFFF)) && entry.depth >= depth) {
-    if (entry.flag === TTFlag.EXACT) return entry.value;
-    if (entry.flag === TTFlag.LOWER && entry.value > alpha) alpha = entry.value;
-    if (entry.flag === TTFlag.UPPER && entry.value < beta) beta = entry.value;
-    if (alpha >= beta) return entry.value;
+  if (ttHit.found && ttHit.depth >= depth) {
+    if (ttHit.flag === TTFlag.EXACT) return ttHit.value;
+    if (ttHit.flag === TTFlag.LOWER && ttHit.value > alpha) alpha = ttHit.value;
+    if (ttHit.flag === TTFlag.UPPER && ttHit.value < beta) beta = ttHit.value;
+    if (alpha >= beta) return ttHit.value;
   }
 
   const inCheck = game.in_check();
-  const moves = orderMoves(game, game.moves({ verbose: true }), maxDepth - depth, state);
-  let bestMove = moves[0]?.san ?? null;
+  const moves = game.moves({ verbose: true });
+  const ordered = orderMoves(moves, maxDepth - depth, state, ttHit.bestMove);
+  let bestMove = ordered[0]?.san ?? null;
   const origAlpha = alpha;
   const origBeta = beta;
   const extension = inCheck ? 1 : 0;
 
-  for (let i = 0; i < moves.length; i++) {
-    game.move(moves[i].san);
+  for (let i = 0; i < ordered.length; i++) {
+    const moveHash = applyIncrementalHash(hash, ordered[i], game);
+    game.move(ordered[i].san);
     const val = isMaximizing
-      ? minimax(game, depth - 1 + extension, alpha, beta, false, myColor, maxDepth, state)
-      : minimax(game, depth - 1 + extension, alpha, beta, true, myColor, maxDepth, state);
+      ? minimax(game, depth - 1 + extension, alpha, beta, false, myColor, maxDepth, state, moveHash)
+      : minimax(game, depth - 1 + extension, alpha, beta, true, myColor, maxDepth, state, moveHash);
     game.undo();
 
     if (isMaximizing) {
       if (val > alpha) {
         alpha = val;
-        bestMove = moves[i].san;
+        bestMove = ordered[i].san;
       }
     } else {
       if (val < beta) {
         beta = val;
-        bestMove = moves[i].san;
+        bestMove = ordered[i].san;
       }
     }
 
     if (beta <= alpha) {
-      if (!moves[i].captured) {
+      if (!ordered[i].captured) {
         const d = maxDepth - depth;
         if (d < state.killers.length) {
-          const key = moves[i].from + moves[i].to;
+          const key = ordered[i].from + ordered[i].to;
           if (state.killers[d][0] !== key) {
             state.killers[d][1] = state.killers[d][0];
             state.killers[d][0] = key;
           }
         }
-        const hKey = moves[i].from + moves[i].to;
+        const hKey = ordered[i].from + ordered[i].to;
         state.historyTable[hKey] = (state.historyTable[hKey] || 0) + depth * depth;
       }
       break;
@@ -210,17 +290,7 @@ export function minimax(
   else if (value >= origBeta) flag = TTFlag.LOWER;
   else flag = TTFlag.EXACT;
 
-  const storedEntry: TTEntry = {
-    key: Number(hash & BigInt(0xFFFFFFFF)),
-    depth,
-    value,
-    flag,
-    bestMove,
-  };
-
-  if (!entry || depth >= entry.depth) {
-    tt[idx] = storedEntry;
-  }
+  ttWrite(hash, depth, value, flag, bestMove);
 
   return value;
 }
@@ -238,11 +308,12 @@ export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000
   let bestValue = -Infinity;
   let completedDepth = 0;
   const startTime = Date.now();
+  let prevScore = 0;
 
   for (let d = 1; d <= maxDepth; d++) {
     if (Date.now() - startTime > timeMs * 0.75) break;
 
-    const ordered = d === 1 ? orderMoves(game, moves, 0, state) : orderMoves(game, game.moves({ verbose: true }), 0, state);
+    const ordered = d === 1 ? orderMoves(moves, 0, state, null) : orderMoves(game.moves({ verbose: true }), 0, state, getTTBestMove(computeHash(game)));
     let iterationBest = null;
     let iterationValue = -Infinity;
     let iterationComplete = true;
@@ -250,8 +321,20 @@ export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000
     for (let i = 0; i < ordered.length; i++) {
       if (Date.now() - startTime > timeMs * 0.9) { iterationComplete = false; break; }
 
+      const moveHash = applyIncrementalHash(computeHash(game), ordered[i], game);
       game.move(ordered[i].san);
-      const val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state);
+
+      let val: number;
+      if (d >= 3 && i > 0) {
+        const aspirationMargin = 50;
+        val = minimax(game, d - 1, prevScore - aspirationMargin, prevScore + aspirationMargin, false, myColor, d, state, moveHash);
+        if (val <= prevScore - aspirationMargin || val >= prevScore + aspirationMargin) {
+          val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state, moveHash);
+        }
+      } else {
+        val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state, moveHash);
+      }
+
       game.undo();
 
       if (val > iterationValue) {
@@ -264,10 +347,20 @@ export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000
       bestMove = iterationBest;
       bestValue = iterationValue;
       completedDepth = d;
+      prevScore = iterationValue;
     }
 
     if (iterationValue > 9000 || iterationValue < -9000) break;
   }
 
   return { bestMove, evaluation: bestValue, depth: completedDepth };
+}
+
+function getTTBestMove(hash: bigint): string | null {
+  const idx = ttIndex(hash);
+  const [lo, hi] = ttSplitHash(hash);
+  if (ttKeyLow[idx] === lo && ttKeyHigh[idx] === hi) {
+    return ttBestMoveArr[idx];
+  }
+  return null;
 }
