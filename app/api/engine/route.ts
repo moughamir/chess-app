@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Chess } from 'chess.js';
-import { getBestMove } from '@/lib/engine';
+import { getBestMove, getNodeCount, resetNodeCount } from '@/lib/engine';
 import { generateExplanation } from '@/lib/explanations';
 
 export async function POST(request: NextRequest) {
@@ -12,13 +12,17 @@ export async function POST(request: NextRequest) {
     }
 
     const game = new Chess(fen);
-    if (game.game_over()) {
+    if (game.isGameOver()) {
       return NextResponse.json({ error: 'Game is over' }, { status: 400 });
     }
 
     const rawDepth = Number(depth) || 5;
     const clampedDepth = Math.min(Math.max(1, rawDepth), 8);
+    resetNodeCount();
+    const start = Date.now();
     const { bestMove, evaluation, depth: searchDepth } = getBestMove(fen, clampedDepth, Number(timeMs) || 5000);
+    const elapsed = Date.now() - start;
+    const nodes = getNodeCount();
     if (!bestMove) {
       return NextResponse.json({ error: 'No moves available' }, { status: 400 });
     }
@@ -30,7 +34,10 @@ export async function POST(request: NextRequest) {
       san: bestMove.san,
       explanation,
       evaluation: Math.round(evaluation),
-      depth: searchDepth
+      depth: searchDepth,
+      nodes,
+      timeMs: elapsed,
+      nps: Math.round(nodes / (elapsed / 1000))
     });
   } catch (error) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
