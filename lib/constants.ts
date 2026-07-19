@@ -29,3 +29,4 @@ export function initZobristKeys(): bigint[][][] {
 }
 
 export const ZOBRIST_KEYS = initZobristKeys();
+export const ZOBRIST_SIDE = BigInt(1) << BigInt(640);

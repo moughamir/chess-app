@@ -1,28 +1,30 @@
 import { Chess, ChessInstance } from 'chess.js';
-import { PIECE_VALUES, CENTER_SQUARES, ZOBRIST_KEYS } from './constants';
+import { PIECE_VALUES, ZOBRIST_KEYS } from './constants';
 
 const TT_SIZE = 1 << 20;
+const TT_MASK = TT_SIZE - 1;
 
 enum TTFlag { EXACT, LOWER, UPPER }
 
 interface TTEntry {
-  key: bigint;
+  key: number;
   depth: number;
   value: number;
   flag: TTFlag;
   bestMove: string | null;
 }
 
-const transpositionTable: Map<bigint, TTEntry> = new Map();
+const tt: TTEntry[] = new Array(TT_SIZE);
 
 export function clearTT(): void {
-  transpositionTable.clear();
+  tt.fill(undefined as any);
 }
 
-export function computeHash(game: ChessInstance): bigint {
+const CENTER_MASK = (1 << 27) | (1 << 28) | (1 << 35) | (1 << 36);
+
+function computeHash(game: ChessInstance): bigint {
   let hash = BigInt(0);
   const board = game.board();
-  const colorIndex = game.turn() === 'w' ? 0 : 1;
 
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
@@ -36,7 +38,12 @@ export function computeHash(game: ChessInstance): bigint {
     }
   }
 
+  if (game.turn() === 'b') hash ^= BigInt(1) << BigInt(640);
   return hash;
+}
+
+function ttIndex(hash: bigint): number {
+  return Number(hash & BigInt(TT_MASK));
 }
 
 export function evaluateBoard(game: ChessInstance, myColor: string): number {
@@ -48,7 +55,7 @@ export function evaluateBoard(game: ChessInstance, myColor: string): number {
       if (b[i][j]) {
         const piece = b[i][j]!;
         let val = PIECE_VALUES[piece.type];
-        if (CENTER_SQUARES.some(([r, c]) => r === i && c === j)) val += 30;
+        if (CENTER_MASK & (1 << (i * 8 + j))) val += 30;
         totalEvaluation += piece.color === myColor ? val : -val;
       }
     }
@@ -76,11 +83,19 @@ interface MoveScore {
   historyTable: Record<string, number>;
 }
 
-export function createMoveScore(): MoveScore {
-  return {
-    killers: [[null, null], [null, null], [null, null], [null, null], [null, null]],
-    historyTable: {}
-  };
+export function createMoveScore(maxDepth: number = 8): MoveScore {
+  const killers: (string | null)[][] = [];
+  for (let i = 0; i < maxDepth; i++) killers.push([null, null]);
+  return { killers, historyTable: {} };
+}
+
+function isCheck(move: any, game: ChessInstance): boolean {
+  const CHECK_FLAGS = 'pnbrqk'.includes(move.piece) && (move.san.includes('+') || move.san.includes('#'));
+  return move.san.endsWith('+') || move.san.endsWith('#');
+}
+
+function isMate(move: any): boolean {
+  return move.san.endsWith('#');
 }
 
 export function scoreMove(
@@ -96,14 +111,16 @@ export function scoreMove(
     score = 10000 + victimVal - attackerVal / 10;
   }
 
-  if (move.san.includes('#')) score += 20000;
-  else if (move.san.includes('+')) score += 5000;
+  if (move.san.endsWith('#')) score += 20000;
+  else if (move.san.endsWith('+')) score += 5000;
 
   if (move.promotion) score += 8000;
 
   const killerKey = move.from + move.to;
-  if (state.killers[depth]?.[0] === killerKey) score += 9000;
-  else if (state.killers[depth]?.[1] === killerKey) score += 8500;
+  if (state.killers[depth]) {
+    if (state.killers[depth][0] === killerKey) score += 9000;
+    else if (state.killers[depth][1] === killerKey) score += 8500;
+  }
 
   if (state.historyTable[killerKey]) {
     score += Math.min(state.historyTable[killerKey], 8000);
@@ -134,23 +151,28 @@ export function minimax(
   if (depth === 0 || game.game_over()) return evaluateBoard(game, myColor);
 
   const hash = computeHash(game);
-  const ttEntry = transpositionTable.get(hash);
+  const idx = ttIndex(hash);
+  const entry = tt[idx];
 
-  if (ttEntry && ttEntry.key === hash && ttEntry.depth >= depth) {
-    if (ttEntry.flag === TTFlag.EXACT) return ttEntry.value;
-    if (ttEntry.flag === TTFlag.LOWER && ttEntry.value > alpha) alpha = ttEntry.value;
-    if (ttEntry.flag === TTFlag.UPPER && ttEntry.value < beta) beta = ttEntry.value;
-    if (alpha >= beta) return ttEntry.value;
+  if (entry && entry.key === Number(hash & BigInt(0xFFFFFFFF)) && entry.depth >= depth) {
+    if (entry.flag === TTFlag.EXACT) return entry.value;
+    if (entry.flag === TTFlag.LOWER && entry.value > alpha) alpha = entry.value;
+    if (entry.flag === TTFlag.UPPER && entry.value < beta) beta = entry.value;
+    if (alpha >= beta) return entry.value;
   }
 
+  const inCheck = game.in_check();
   const moves = orderMoves(game, game.moves({ verbose: true }), maxDepth - depth, state);
   let bestMove = moves[0]?.san ?? null;
+  const origAlpha = alpha;
+  const origBeta = beta;
+  const extension = inCheck ? 1 : 0;
 
   for (let i = 0; i < moves.length; i++) {
     game.move(moves[i].san);
     const val = isMaximizing
-      ? minimax(game, depth - 1, alpha, beta, false, myColor, maxDepth, state)
-      : minimax(game, depth - 1, alpha, beta, true, myColor, maxDepth, state);
+      ? minimax(game, depth - 1 + extension, alpha, beta, false, myColor, maxDepth, state)
+      : minimax(game, depth - 1 + extension, alpha, beta, true, myColor, maxDepth, state);
     game.undo();
 
     if (isMaximizing) {
@@ -182,18 +204,31 @@ export function minimax(
     }
   }
 
-  const flag = alpha <= alpha ? (isMaximizing ? TTFlag.LOWER : TTFlag.UPPER) : TTFlag.EXACT;
-  if (transpositionTable.size < TT_SIZE || depth >= 3) {
-    transpositionTable.set(hash, { key: hash, depth, value: isMaximizing ? alpha : beta, flag, bestMove });
+  const value = isMaximizing ? alpha : beta;
+  let flag: TTFlag;
+  if (value <= origAlpha) flag = TTFlag.UPPER;
+  else if (value >= origBeta) flag = TTFlag.LOWER;
+  else flag = TTFlag.EXACT;
+
+  const storedEntry: TTEntry = {
+    key: Number(hash & BigInt(0xFFFFFFFF)),
+    depth,
+    value,
+    flag,
+    bestMove,
+  };
+
+  if (!entry || depth >= entry.depth) {
+    tt[idx] = storedEntry;
   }
 
-  return isMaximizing ? alpha : beta;
+  return value;
 }
 
 export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000): { bestMove: any; evaluation: number; depth: number } {
   const game = new Chess(fen);
   const myColor = game.turn();
-  const state = createMoveScore();
+  const state = createMoveScore(maxDepth);
   clearTT();
 
   const moves = game.moves({ verbose: true });
