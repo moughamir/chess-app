@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Chess } from 'chess.js';
 import { getBestMove, getNodeCount, resetNodeCount } from '@/lib/engine';
 import { generateExplanation } from '@/lib/explanations';
+import { getLichessEval } from '@/lib/lichess';
+
+export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,30 +19,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Game is over' }, { status: 400 });
     }
 
-    const rawDepth = Number(depth) || 5;
-    const clampedDepth = Math.min(Math.max(1, rawDepth), 8);
-    resetNodeCount();
     const start = Date.now();
-    const { bestMove, evaluation, depth: searchDepth } = getBestMove(fen, clampedDepth, Number(timeMs) || 5000);
+    let result: any = null;
+    let engine = 'custom';
+
+    result = await getLichessEval(fen);
+
+    if (result) {
+      engine = 'stockfish-cloud';
+    } else {
+      const rawDepth = Number(depth) || 5;
+      const clampedDepth = Math.min(Math.max(1, rawDepth), 8);
+      resetNodeCount();
+      const customResult = getBestMove(fen, clampedDepth, Number(timeMs) || 5000);
+      result = {
+        bestMove: customResult.bestMove?.from + customResult.bestMove?.to,
+        san: customResult.bestMove?.san,
+        evaluation: customResult.evaluation,
+        depth: customResult.depth,
+        nodes: getNodeCount(),
+      };
+      engine = 'custom-minimax';
+    }
+
     const elapsed = Date.now() - start;
-    const nodes = getNodeCount();
-    if (!bestMove) {
+
+    if (!result.san) {
       return NextResponse.json({ error: 'No moves available' }, { status: 400 });
     }
 
-    const explanation = generateExplanation(bestMove);
+    const moveObj = game.move(result.san);
+    if (!moveObj) {
+      return NextResponse.json({ error: 'Invalid move' }, { status: 400 });
+    }
+
+    const explanation = generateExplanation(moveObj);
 
     return NextResponse.json({
-      bestMove: bestMove.from + bestMove.to,
-      san: bestMove.san,
+      bestMove: result.bestMove,
+      san: result.san,
       explanation,
-      evaluation: Math.round(evaluation),
-      depth: searchDepth,
-      nodes,
+      evaluation: Math.round(result.evaluation || 0),
+      depth: result.depth,
+      nodes: result.nodes,
       timeMs: elapsed,
-      nps: Math.round(nodes / (elapsed / 1000))
+      engine,
     });
   } catch (error) {
+    console.error('Engine error:', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
