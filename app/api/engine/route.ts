@@ -16,7 +16,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Game is over' }, { status: 400 });
     }
 
-    const { bestMove, evaluation } = getBestMove(fen, depth);
+    const rawDepth = Number(depth) || 3;
+    const clampedDepth = Math.min(Math.max(1, rawDepth), 5);
+    const { bestMove, evaluation } = getBestMove(fen, clampedDepth);
     if (!bestMove) {
       return NextResponse.json({ error: 'No moves available' }, { status: 400 });
     }

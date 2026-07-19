@@ -3,7 +3,7 @@ export function generateExplanation(move: any): string {
 
   if (move.san.includes('#')) return prefix + "<b>👑 كش مات:</b> سالا الماتش! هادي هي الضربة القاضية، الملك ديال الخصم ماعندو فين يهرب.";
   if (move.san.includes('+')) return prefix + "<b>⚠️ كش للملك:</b> هاد الحركة كتفرض على الخصم يدافع على الملك ديالو وكتعطيك السيطرة.";
-  if (move.flags.includes('c')) return prefix + "<b>⚔️ أكل قطعة (Capture):</b> كلينا ليه قطعة باش نقصو من القوة ديالو. ديما تأكد بلي القطعة ديالك محمية.";
+  if (move.flags && move.flags.includes('c')) return prefix + "<b>⚔️ أكل قطعة (Capture):</b> كلينا ليه قطعة باش نقصو من القوة ديالو. ديما تأكد بلي القطعة ديالك محمية.";
   if (move.san === 'O-O' || move.san === 'O-O-O') return prefix + "<b>🏰 التبييت (Castling):</b> خبينا الملك فبلاصة آمنة، وخرجنا القلعة (الرخ) باش تشارك فالهجوم.";
   if (move.piece === 'p' && ['d4', 'e4', 'd5', 'e5'].includes(move.to)) return prefix + "<b>🎯 السيطرة على الوسط:</b> البيدق فوسط الرقعة كيتحكم فمساحة كبيرة، وكيحل الطريق للهجوم.";
   if (move.piece === 'n') return prefix + "<b>🐴 نشر الحصان:</b> الحصان كيتحرك مزيان فاش كيكون قريب للوسط، هادشي كيزيد الضغط على الخصم.";

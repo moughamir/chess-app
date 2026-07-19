@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { generateExplanation } from '@/lib/explanations';
 
 declare global {
   interface Window {
@@ -67,23 +68,10 @@ export default function Home() {
     setHistoryHtml(formattedText);
   }, []);
 
-  const generateExplanationLocal = useCallback((move: any): string => {
-    const prefix = "<span style='color:#34d399'>💡 الفلسفة من هاد الحركة:</span><br>";
-    if (move.san.includes('#')) return prefix + "<b>👑 كش مات:</b> سالا الماتش! هادي هي الضربة القاضية، الملك ديال الخصم ماعندو فين يهرب.";
-    if (move.san.includes('+')) return prefix + "<b>⚠️ كش للملك:</b> هاد الحركة كتفرض على الخصم يدافع على الملك ديالو وكتعطيك السيطرة.";
-    if (move.flags && move.flags.includes('c')) return prefix + "<b>⚔️ أكل قطعة (Capture):</b> كلينا ليه قطعة باش نقصو من القوة ديالو. ديما تأكد بلي القطعة ديالك محمية.";
-    if (move.san === 'O-O' || move.san === 'O-O-O') return prefix + "<b>🏰 التبييت (Castling):</b> خبينا الملك فبلاصة آمنة، وخرجنا القلعة (الرخ) باش تشارك فالهجوم.";
-    if (move.piece === 'p' && ['d4', 'e4', 'd5', 'e5'].includes(move.to)) return prefix + "<b>🎯 السيطرة على الوسط:</b> البيدق فوسط الرقعة كيتحكم فمساحة كبيرة، وكيحل الطريق للهجوم.";
-    if (move.piece === 'n') return prefix + "<b>🐴 نشر الحصان:</b> الحصان كيتحرك مزيان فاش كيكون قريب للوسط، هادشي كيزيد الضغط على الخصم.";
-    if (move.piece === 'b') return prefix + "<b>🎯 نشر الفيل:</b> حطينا الفيل فمربع كيتحكم فـ 'قطر' طويل باش يضغط على معسكر الخصم.";
-    if (move.piece === 'r' || move.piece === 'q') return prefix + "<b>🚀 تحريك القطع الثقيلة:</b> كنجيبو القلعة ولا الوزير لبلاصة استراتيجية باش نوجدو للهجوم.";
-    return prefix + "<b>🧩 تحسين التموقع:</b> هاد الحركة الهدف ديالها هو نحطو القطعة فمربع أحسن باش تعاون فال الدفاع ولا توجد لهجوم مستقبلي.";
-  }, []);
-
   const analyzeUserMove = useCallback((move: any): string => {
     const chess = chessRef.current;
     if (!chess) return '';
-    let explanation = generateExplanationLocal(move).replace("<span style='color:#34d399'>💡 الفلسفة من هاد الحركة:</span><br>", "");
+    let explanation = generateExplanation(move).replace("<span style='color:#34d399'>💡 الفلسفة من هاد الحركة:</span><br>", "");
     let msg = `<span style="color:#34d399">💡 <b>تحليل الحركة ديالك:</b></span><br>${explanation}`;
 
     const oppMoves = chess.moves({ verbose: true });
@@ -112,9 +100,9 @@ export default function Home() {
     }
 
     return msg;
-  }, [generateExplanationLocal]);
+  }, []);
 
-  const updateStatusUI = useCallback((systemMove: any = null) => {
+  const updateStatusUI = useCallback((systemMove: any = null, serverExplanation?: string) => {
     setStatusThinking(false);
     const chess = chessRef.current;
     if (!chess) return;
@@ -123,7 +111,7 @@ export default function Home() {
       setStatusUserTurn(true);
       if (systemMove) {
         setStatusText(`🔥 System Played: <b style="color:#e11d48">${systemMove.san}</b><br><br>👉 CLICK opponent's piece to match move.`);
-        setExplanationHtml(generateExplanationLocal(systemMove));
+        setExplanationHtml(serverExplanation || generateExplanation(systemMove));
         setShowExplanation(true);
         setActionBtnText("🔄 Undo System Move & Play Manually");
         setShowActionBtn(true);
@@ -138,7 +126,7 @@ export default function Home() {
       setShowExplanation(false);
       setShowActionBtn(false);
     }
-  }, [generateExplanationLocal]);
+  }, []);
 
   const handleGameOver = useCallback(() => {
     setStatusThinking(false);
@@ -193,7 +181,7 @@ export default function Home() {
         if (chess.game_over()) {
           handleGameOver();
         } else {
-          updateStatusUI(move);
+          updateStatusUI(move, data.explanation);
         }
       }
     } catch {
@@ -363,6 +351,16 @@ export default function Home() {
       historyWrapper.scrollTop = historyWrapper.scrollHeight;
     }
   }, [historyHtml]);
+
+  useEffect(() => {
+    return () => {
+      const jq = window.jQuery;
+      if (jq && boardRef.current) {
+        jq(boardRef.current).off('click touchend', '.square-55d63');
+      }
+      if (jq) jq(window).off('resize');
+    };
+  }, []);
 
   return (
     <div className="main-wrapper">
