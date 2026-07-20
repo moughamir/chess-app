@@ -43,7 +43,7 @@ export const OPENINGS: Opening[] = [
   { name: "London System", moves: ["d4", "d5", "Nf3", "Nf6", "Bf4"], eco: "D00", category: "d4" },
   { name: "Colle System", moves: ["d4", "d5", "Nf3", "Nf6", "e3"], eco: "D05", category: "d4" },
   // 1. c4 Openings
-  { name: "English Opening", moves: ["c4", "e5"], eco: "B20", category: "c4" },
+  { name: "English Opening", moves: ["c4", "e5"], eco: "A20", category: "c4" },
   { name: "English Symmetrical", moves: ["c4", "c5"], eco: "A30", category: "c4" },
   // 1. Nf3 Openings
   { name: "Réti Opening", moves: ["Nf3", "d5", "c4"], eco: "A09", category: "Nf3" },
