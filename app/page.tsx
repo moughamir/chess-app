@@ -372,6 +372,125 @@ export default function Home() {
     }, 100);
   }, [playerSide, handleSquareClick, updateStatusUI, startEngineCalculation]);
 
+  const loadGameFromPGN = useCallback((game: ParsedGame) => {
+    if (typeof window === 'undefined') return;
+    const Chess = window.Chess;
+    const $ = window.jQuery;
+    if (!$ || !window.Chessboard || !Chess) return;
+
+    chessRef.current = new Chess();
+    chessRef.current.load_pgn(game.moves.join(' '));
+
+    const turn = chessRef.current.turn();
+    myColorRef.current = turn;
+    oppColorRef.current = turn === 'w' ? 'b' : 'w';
+    setPlayerSide(turn === 'w' ? 'white' : 'black');
+
+    setGameStarted(true);
+    setModalOpen(false);
+
+    setTimeout(() => {
+      if (!boardRef.current) return;
+      const config = {
+        draggable: false,
+        position: chessRef.current.fen(),
+        orientation: myColorRef.current === 'w' ? 'white' : 'black',
+        moveSpeed: 0,
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+      };
+      boardInstance.current = window.Chessboard(boardRef.current, config);
+      $(window).off('resize').on('resize', () => boardInstance.current?.resize());
+      $(boardRef.current).off('click touchend', '.square-55d63');
+      $(boardRef.current).on('click touchend', '.square-55d63', function(this: HTMLElement, e: any) {
+        e.preventDefault();
+        const square = $(this).attr('data-square');
+        if (square) handleSquareClick(square);
+      });
+      renderHistory();
+      updateStatusUI();
+    }, 100);
+  }, [handleSquareClick, updateStatusUI, renderHistory]);
+
+  const loadGameFromFEN = useCallback((fen: string) => {
+    if (typeof window === 'undefined') return;
+    const Chess = window.Chess;
+    const $ = window.jQuery;
+    if (!$ || !window.Chessboard || !Chess) return;
+
+    const test = new Chess();
+    if (!test.load(fen)) {
+      setFenError('Invalid FEN string');
+      return;
+    }
+
+    chessRef.current = new Chess();
+    chessRef.current.load(fen);
+
+    const turn = chessRef.current.turn();
+    myColorRef.current = turn;
+    oppColorRef.current = turn === 'w' ? 'b' : 'w';
+    setPlayerSide(turn === 'w' ? 'white' : 'black');
+
+    setGameStarted(true);
+    setModalOpen(false);
+
+    setTimeout(() => {
+      if (!boardRef.current) return;
+      const config = {
+        draggable: false,
+        position: chessRef.current.fen(),
+        orientation: myColorRef.current === 'w' ? 'white' : 'black',
+        moveSpeed: 0,
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+      };
+      boardInstance.current = window.Chessboard(boardRef.current, config);
+      $(window).off('resize').on('resize', () => boardInstance.current?.resize());
+      $(boardRef.current).off('click touchend', '.square-55d63');
+      $(boardRef.current).on('click touchend', '.square-55d63', function(this: HTMLElement, e: any) {
+        e.preventDefault();
+        const square = $(this).attr('data-square');
+        if (square) handleSquareClick(square);
+      });
+      renderHistory();
+      updateStatusUI();
+    }, 100);
+  }, [handleSquareClick, updateStatusUI, renderHistory]);
+
+  const loadChessComArchives = useCallback(async () => {
+    setChesscomLoading(true);
+    setChesscomError('');
+    const result = await fetchArchives(chesscomUsername);
+    setChesscomLoading(false);
+    if (result.error) {
+      setChesscomError(result.error);
+      return;
+    }
+    setChesscomArchives(result.archives);
+    setChesscomStep('archives');
+  }, [chesscomUsername]);
+
+  const loadChessComGames = useCallback(async (archive: Archive) => {
+    setChesscomLoading(true);
+    setChesscomError('');
+    const result = await fetchGames(archive.url);
+    setChesscomLoading(false);
+    if (result.error) {
+      setChesscomError(result.error);
+      return;
+    }
+    setChesscomGames(result.games);
+    setChesscomStep('games');
+  }, []);
+
+  const loadGameFromChessCom = useCallback((game: ChessComGame) => {
+    const result = parsePGN(game.pgn);
+    if (result.error || result.games.length === 0) {
+      showToast('Could not parse game', 'error');
+      return;
+    }
+    loadGameFromPGN(result.games[0]);
+  }, [loadGameFromPGN, showToast]);
+
   useEffect(() => {
     renderHistory();
   }, [renderHistory, historyHtml]);
