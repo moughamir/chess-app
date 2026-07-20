@@ -20,6 +20,9 @@ export async function fetchArchives(username: string): Promise<{ archives: Archi
     if (res.status === 404) {
       return { archives: [], error: "Player not found" };
     }
+    if (res.status === 403) {
+      return { archives: [], error: "Profile is private" };
+    }
     if (!res.ok) {
       return { archives: [], error: "Could not connect to Chess.com" };
     }
@@ -59,6 +62,9 @@ export async function fetchGames(archiveUrl: string): Promise<{ games: ChessComG
         timeControl: headers["TimeControl"] || "Unknown",
       };
     });
+    if (games.length === 0) {
+      return { games: [], error: "No games found for this player" };
+    }
     return { games };
   } catch {
     return { games: [], error: "Could not load games" };
