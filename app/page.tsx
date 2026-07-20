@@ -258,6 +258,50 @@ export default function Home() {
         return;
       }
 
+      if (openingMode === 'force' && selectedOpening && forceMoveIndex < selectedOpening.moves.length) {
+        const expectedMove = selectedOpening.moves[forceMoveIndex];
+        const moveAttempt = chess.move({
+          from: sourceSquareRef.current,
+          to: square,
+          promotion: 'q'
+        });
+
+        if (moveAttempt === null) {
+          sourceSquareRef.current = null;
+          removeHighlights();
+          return;
+        }
+
+        if (moveAttempt.san === expectedMove) {
+          sourceSquareRef.current = null;
+          removeHighlights();
+          if (boardInstance.current) {
+            boardInstance.current.position(chess.fen(), false);
+          }
+          highlightLastMove(moveAttempt);
+          renderHistory();
+
+          const newForceIndex = forceMoveIndex + 1;
+          setForceMoveIndex(newForceIndex);
+
+          if (newForceIndex >= selectedOpening.moves.length) {
+            setOpeningMode(null);
+            showToast('Opening completed! Free play now.', 'warning');
+          }
+
+          if (chess.game_over()) {
+            handleGameOver();
+          } else {
+            updateStatusUI();
+          }
+        } else {
+          sourceSquareRef.current = null;
+          removeHighlights();
+          showToast(`Wrong move! Expected: ${expectedMove}`, 'warning');
+        }
+        return;
+      }
+
       const move = chess.move({
         from: sourceSquareRef.current,
         to: square,
@@ -300,7 +344,7 @@ export default function Home() {
         }
       }
     }
-  }, [removeHighlights, highlightLastMove, renderHistory, handleGameOver, startEngineCalculation, analyzeUserMove, updateStatusUI]);
+  }, [openingMode, selectedOpening, forceMoveIndex, removeHighlights, highlightLastMove, renderHistory, handleGameOver, startEngineCalculation, analyzeUserMove, updateStatusUI, showToast]);
 
   const stepBack = useCallback(() => {
     const chess = chessRef.current;
@@ -490,6 +534,104 @@ export default function Home() {
     }
     loadGameFromPGN(result.games[0]);
   }, [loadGameFromPGN, showToast]);
+
+  const getFilteredOpenings = useCallback((): Opening[] => {
+    if (openingSearch) return searchOpenings(openingSearch);
+    if (openingFilter) return filterByFirstMove(openingFilter);
+    return OPENINGS;
+  }, [openingSearch, openingFilter]);
+
+  const startOpeningReplay = useCallback((opening: Opening) => {
+    if (typeof window === 'undefined') return;
+    const Chess = window.Chess;
+    const $ = window.jQuery;
+    if (!$ || !window.Chessboard || !Chess) return;
+
+    chessRef.current = new Chess();
+    setGameStarted(true);
+    setModalOpen(false);
+    setOpeningMode('replay');
+    setSelectedOpening(opening);
+
+    setTimeout(() => {
+      if (!boardRef.current) return;
+      const config = {
+        draggable: false,
+        position: 'start',
+        orientation: playerSide,
+        moveSpeed: 300,
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+      };
+      boardInstance.current = window.Chessboard(boardRef.current, config);
+      $(window).off('resize').on('resize', () => boardInstance.current?.resize());
+      $(boardRef.current).off('click touchend', '.square-55d63');
+      $(boardRef.current).on('click touchend', '.square-55d63', function(this: HTMLElement, e: any) {
+        e.preventDefault();
+        const square = $(this).attr('data-square');
+        if (square) handleSquareClick(square);
+      });
+
+      let moveIndex = 0;
+      const replayNextMove = () => {
+        if (moveIndex >= opening.moves.length) {
+          setOpeningMode(null);
+          myColorRef.current = playerSide === 'white' ? 'w' : 'b';
+          oppColorRef.current = myColorRef.current === 'w' ? 'b' : 'w';
+          renderHistory();
+          updateStatusUI();
+          return;
+        }
+        const move = chessRef.current.move(opening.moves[moveIndex]);
+        if (move) {
+          boardInstance.current.position(chessRef.current.fen(), false);
+          highlightLastMove(move);
+          moveIndex++;
+          setTimeout(replayNextMove, 800);
+        } else {
+          showToast(`Invalid move in opening: ${opening.moves[moveIndex]}`, 'error');
+          setOpeningMode(null);
+        }
+      };
+      setTimeout(replayNextMove, 500);
+    }, 100);
+  }, [playerSide, handleSquareClick, updateStatusUI, highlightLastMove, renderHistory, showToast]);
+
+  const startOpeningForce = useCallback((opening: Opening) => {
+    if (typeof window === 'undefined') return;
+    const Chess = window.Chess;
+    const $ = window.jQuery;
+    if (!$ || !window.Chessboard || !Chess) return;
+
+    chessRef.current = new Chess();
+    setGameStarted(true);
+    setModalOpen(false);
+    setOpeningMode('force');
+    setSelectedOpening(opening);
+    setForceMoveIndex(0);
+    myColorRef.current = playerSide === 'white' ? 'w' : 'b';
+    oppColorRef.current = myColorRef.current === 'w' ? 'b' : 'w';
+
+    setTimeout(() => {
+      if (!boardRef.current) return;
+      const config = {
+        draggable: false,
+        position: 'start',
+        orientation: playerSide,
+        moveSpeed: 0,
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+      };
+      boardInstance.current = window.Chessboard(boardRef.current, config);
+      $(window).off('resize').on('resize', () => boardInstance.current?.resize());
+      $(boardRef.current).off('click touchend', '.square-55d63');
+      $(boardRef.current).on('click touchend', '.square-55d63', function(this: HTMLElement, e: any) {
+        e.preventDefault();
+        const square = $(this).attr('data-square');
+        if (square) handleSquareClick(square);
+      });
+      updateStatusUI();
+      showToast(`Practice mode: Play ${opening.moves[0]}`, 'warning');
+    }, 100);
+  }, [playerSide, handleSquareClick, updateStatusUI, showToast]);
 
   useEffect(() => {
     renderHistory();
@@ -897,17 +1039,13 @@ export default function Home() {
                   <div className="mode-buttons">
                     <button
                       className="mode-btn replay"
-                      onClick={() => {
-                        showToast('Replay mode coming soon', 'warning');
-                      }}
+                      onClick={() => startOpeningReplay(selectedOpening)}
                     >
                       🔄 Replay (Demo)
                     </button>
                     <button
                       className="mode-btn force"
-                      onClick={() => {
-                        showToast('Force mode coming soon', 'warning');
-                      }}
+                      onClick={() => startOpeningForce(selectedOpening)}
                     >
                       🔒 Force (Practice)
                     </button>
