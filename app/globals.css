@@ -1,10 +1,18 @@
 body { 
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
     background-color: #0e0e11; color: #e0e0e0; 
-    margin: 0; padding: 20px; 
+    margin: 0; padding: 0; 
     min-height: 100vh; overflow-x: hidden; 
-    display: flex; justify-content: center; align-items: center; 
+    display: flex; flex-direction: column;
     box-sizing: border-box;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
 }
 
 * {
@@ -518,4 +526,122 @@ h4 { margin: 0; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; 
 .btn-new-game:hover {
   background: #3f3f46;
   color: #f4f4f5;
+}
+
+/* Navigation Bar */
+.navbar {
+  background: #09090b;
+  border-bottom: 1px solid #27272a;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #f4f4f5;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.brand-icon {
+  font-size: 1.4em;
+}
+
+.brand-text {
+  letter-spacing: 0.5px;
+}
+
+.brand-badge {
+  background: #e11d48;
+  color: #fff;
+  font-size: 0.65em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 4px;
+}
+
+.navbar-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px;
+  text-decoration: none;
+  color: #71717a;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.navbar-link:hover {
+  background: #18181b;
+  color: #a1a1aa;
+}
+
+.navbar-link.active {
+  background: #1c1917;
+  color: #f4f4f5;
+}
+
+.navbar-link.active .link-label {
+  color: #e11d48;
+}
+
+.link-label {
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.link-desc {
+  font-size: 0.7em;
+  color: #52525b;
+  margin-top: 2px;
+}
+
+.navbar-link.active .link-desc {
+  color: #71717a;
+}
+
+/* Responsive navigation */
+@media (max-width: 480px) {
+  .navbar-inner {
+    flex-direction: column;
+    height: auto;
+    padding: 12px 0;
+    gap: 12px;
+  }
+
+  .navbar-links {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .navbar-link {
+    flex: 1;
+    max-width: 120px;
+  }
+
+  .link-desc {
+    display: none;
+  }
 }
