@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { generateExplanation } from '@/lib/explanations';
+import { parsePGN, getGamePreview, ParsedGame } from '@/lib/pgn-parser';
+import { fetchArchives, fetchGames, Archive, ChessComGame } from '@/lib/chesscom-api';
+import { searchOpenings, filterByFirstMove, Opening, OPENINGS } from '@/lib/openings';
 
 declare global {
   interface Window {
@@ -29,6 +32,34 @@ export default function Home() {
   const sourceSquareRef = useRef<string | null>(null);
   const myColorRef = useRef('w');
   const oppColorRef = useRef('b');
+  const [modalOpen, setModalOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<'new' | 'load' | 'openings'>('new');
+  const [loadSubTab, setLoadSubTab] = useState<'pgn' | 'fen' | 'chesscom'>('pgn');
+  const [pgnInput, setPgnInput] = useState('');
+  const [fenInput, setFenInput] = useState('');
+  const [pgnError, setPgnError] = useState('');
+  const [fenError, setFenError] = useState('');
+  const [parsedGames, setParsedGames] = useState<ParsedGame[]>([]);
+  const [selectedGameIndex, setSelectedGameIndex] = useState(0);
+  const [chesscomUsername, setChesscomUsername] = useState('');
+  const [chesscomArchives, setChesscomArchives] = useState<Archive[]>([]);
+  const [chesscomGames, setChesscomGames] = useState<ChessComGame[]>([]);
+  const [chesscomLoading, setChesscomLoading] = useState(false);
+  const [chesscomError, setChesscomError] = useState('');
+  const [chesscomStep, setChesscomStep] = useState<'username' | 'archives' | 'games'>('username');
+  const [openingSearch, setOpeningSearch] = useState('');
+  const [openingFilter, setOpeningFilter] = useState('');
+  const [selectedOpening, setSelectedOpening] = useState<Opening | null>(null);
+  const [openingMode, setOpeningMode] = useState<'replay' | 'force' | null>(null);
+  const [forceMoveIndex, setForceMoveIndex] = useState(0);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'warning' | 'error' | ''>('');
+
+  const showToast = useCallback((message: string, type: 'warning' | 'error' | '' = '') => {
+    setToastMessage(message);
+    setToastType(type);
+    setTimeout(() => setToastMessage(''), 3000);
+  }, []);
 
   const removeHighlights = useCallback(() => {
     if (!boardRef.current) return;
@@ -388,6 +419,11 @@ export default function Home() {
           </div>
         ) : (
           <div id="game-section">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+              <button className="btn-new-game" onClick={() => setModalOpen(true)}>
+                ♟ New Game
+              </button>
+            </div>
             <div id="status-box" className={statusUserTurn ? 'user-turn' : ''}>
               <div
                 id="status-title"
@@ -420,6 +456,355 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {modalOpen && (
+        <div className="modal-overlay" onClick={(e) => {
+          if (e.target === e.currentTarget) setModalOpen(false);
+        }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-tabs">
+              <button
+                className={`modal-tab ${activeTab === 'new' ? 'active' : ''}`}
+                onClick={() => setActiveTab('new')}
+              >
+                ♟ New Game
+              </button>
+              <button
+                className={`modal-tab ${activeTab === 'load' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('load');
+                  setChesscomStep('username');
+                  setChesscomArchives([]);
+                  setChesscomGames([]);
+                  setChesscomError('');
+                }}
+              >
+                📂 Load Game
+              </button>
+              <button
+                className={`modal-tab ${activeTab === 'openings' ? 'active' : ''}`}
+                onClick={() => setActiveTab('openings')}
+              >
+                📖 Openings
+              </button>
+            </div>
+
+            {activeTab === 'new' && (
+              <div>
+                <p style={{ color: '#a1a1aa', fontSize: '0.9em', marginBottom: '12px' }}>
+                  Choose your side:
+                </p>
+                <div className="side-picker">
+                  <div
+                    className={`side-option ${playerSide === 'white' ? 'selected' : ''}`}
+                    onClick={() => setPlayerSide('white')}
+                  >
+                    <div className="piece">♙</div>
+                    <div className="label">White</div>
+                    <div className="desc">Attack First</div>
+                  </div>
+                  <div
+                    className={`side-option ${playerSide === 'black' ? 'selected' : ''}`}
+                    onClick={() => setPlayerSide('black')}
+                  >
+                    <div className="piece">♟</div>
+                    <div className="label">Black</div>
+                    <div className="desc">Counter Attack</div>
+                  </div>
+                </div>
+                <button className="btn-modal-primary" onClick={() => {
+                  setModalOpen(false);
+                  startGame();
+                }}>
+                  Start Battle
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'load' && (
+              <div>
+                <div className="sub-tabs">
+                  <button
+                    className={`sub-tab ${loadSubTab === 'pgn' ? 'active' : ''}`}
+                    onClick={() => setLoadSubTab('pgn')}
+                  >
+                    PGN
+                  </button>
+                  <button
+                    className={`sub-tab ${loadSubTab === 'fen' ? 'active' : ''}`}
+                    onClick={() => setLoadSubTab('fen')}
+                  >
+                    FEN
+                  </button>
+                  <button
+                    className={`sub-tab ${loadSubTab === 'chesscom' ? 'active' : ''}`}
+                    onClick={() => setLoadSubTab('chesscom')}
+                  >
+                    Chess.com
+                  </button>
+                </div>
+
+                {loadSubTab === 'pgn' && (
+                  <div>
+                    <textarea
+                      className={`modal-textarea ${pgnError ? 'error' : ''}`}
+                      placeholder="Paste PGN here..."
+                      value={pgnInput}
+                      onChange={(e) => {
+                        setPgnInput(e.target.value);
+                        setPgnError('');
+                        setParsedGames([]);
+                      }}
+                    />
+                    {pgnError && (
+                      <p style={{ color: '#ef4444', fontSize: '0.85em', marginBottom: '12px' }}>
+                        {pgnError}
+                      </p>
+                    )}
+                    {parsedGames.length > 1 && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <p style={{ color: '#a1a1aa', fontSize: '0.85em', marginBottom: '8px' }}>
+                          Multiple games found — select one:
+                        </p>
+                        {parsedGames.map((game, i) => (
+                          <div
+                            key={i}
+                            className={`opening-item ${selectedGameIndex === i ? 'selected' : ''}`}
+                            onClick={() => setSelectedGameIndex(i)}
+                          >
+                            <div className="name">{getGamePreview(game)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {parsedGames.length === 1 && (
+                      <div className="game-preview">
+                        <div className="title">{getGamePreview(parsedGames[0])}</div>
+                      </div>
+                    )}
+                    <div className="btn-row">
+                      <button className="btn-modal-secondary" onClick={() => {
+                        setPgnInput('');
+                        setPgnError('');
+                        setParsedGames([]);
+                      }}>
+                        Clear
+                      </button>
+                      <button
+                        className="btn-modal-primary"
+                        disabled={!pgnInput.trim()}
+                        onClick={() => {
+                          const result = parsePGN(pgnInput);
+                          if (result.error) {
+                            setPgnError(result.error);
+                            return;
+                          }
+                          setParsedGames(result.games);
+                          setSelectedGameIndex(0);
+                        }}
+                      >
+                        {parsedGames.length > 1 ? 'Load Selected' : 'Parse PGN'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {loadSubTab === 'fen' && (
+                  <div>
+                    <input
+                      className={`modal-input ${fenError ? 'error' : ''}`}
+                      placeholder="Paste FEN string here..."
+                      value={fenInput}
+                      onChange={(e) => {
+                        setFenInput(e.target.value);
+                        setFenError('');
+                      }}
+                    />
+                    {fenError && (
+                      <p style={{ color: '#ef4444', fontSize: '0.85em', marginBottom: '12px' }}>
+                        {fenError}
+                      </p>
+                    )}
+                    <div className="btn-row">
+                      <button className="btn-modal-secondary" onClick={() => {
+                        setFenInput('');
+                        setFenError('');
+                      }}>
+                        Clear
+                      </button>
+                      <button
+                        className="btn-modal-primary"
+                        disabled={!fenInput.trim()}
+                        onClick={() => setFenError('')}
+                      >
+                        Load Position
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {loadSubTab === 'chesscom' && (
+                  <div>
+                    {chesscomStep === 'username' && (
+                      <div>
+                        <input
+                          className="modal-input"
+                          placeholder="Chess.com username..."
+                          value={chesscomUsername}
+                          onChange={(e) => setChesscomUsername(e.target.value)}
+                        />
+                        {chesscomError && (
+                          <p style={{ color: '#ef4444', fontSize: '0.85em', marginBottom: '12px' }}>
+                            {chesscomError}
+                          </p>
+                        )}
+                        <button
+                          className="btn-modal-primary"
+                          disabled={!chesscomUsername.trim() || chesscomLoading}
+                        >
+                          {chesscomLoading && <span className="spinner" />}
+                          Find Games
+                        </button>
+                      </div>
+                    )}
+
+                    {chesscomStep === 'archives' && (
+                      <div>
+                        <p style={{ color: '#a1a1aa', fontSize: '0.85em', marginBottom: '8px' }}>
+                          Select a month:
+                        </p>
+                        <div className="chesscom-list">
+                          {chesscomArchives.map((archive, i) => (
+                            <div key={i} className="chesscom-item">
+                              <div className="opponent">
+                                {archive.year}-{String(archive.month).padStart(2, '0')}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <button className="btn-modal-secondary" onClick={() => {
+                          setChesscomStep('username');
+                          setChesscomArchives([]);
+                        }}>
+                          Back
+                        </button>
+                      </div>
+                    )}
+
+                    {chesscomStep === 'games' && (
+                      <div>
+                        <p style={{ color: '#a1a1aa', fontSize: '0.85em', marginBottom: '8px' }}>
+                          Select a game:
+                        </p>
+                        <div className="chesscom-list">
+                          {chesscomGames.map((game, i) => (
+                            <div key={i} className="chesscom-item">
+                              <div className="opponent">vs {game.opponent}</div>
+                              <div className="meta">{game.date} — {game.result}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {chesscomGames.length === 0 && (
+                          <p style={{ color: '#71717a', textAlign: 'center', padding: '20px' }}>
+                            No games found for this month
+                          </p>
+                        )}
+                        <button className="btn-modal-secondary" onClick={() => {
+                          setChesscomStep('archives');
+                          setChesscomGames([]);
+                        }}>
+                          Back
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'openings' && (
+              <div>
+                <input
+                  className="opening-search"
+                  placeholder="Search openings..."
+                  value={openingSearch}
+                  onChange={(e) => {
+                    setOpeningSearch(e.target.value);
+                    setOpeningFilter('');
+                  }}
+                />
+                <div className="opening-filters">
+                  {['e4', 'd4', 'c4', 'Nf3'].map(move => (
+                    <button
+                      key={move}
+                      className={`opening-filter-btn ${openingFilter === move ? 'active' : ''}`}
+                      onClick={() => {
+                        setOpeningFilter(openingFilter === move ? '' : move);
+                        setOpeningSearch('');
+                      }}
+                    >
+                      1. {move}
+                    </button>
+                  ))}
+                </div>
+                <div className="opening-list">
+                  {(() => {
+                    let openings = OPENINGS;
+                    if (openingSearch) openings = searchOpenings(openingSearch);
+                    else if (openingFilter) openings = filterByFirstMove(openingFilter);
+                    return openings.map((opening, i) => (
+                      <div
+                        key={i}
+                        className={`opening-item ${selectedOpening?.name === opening.name ? 'selected' : ''}`}
+                        onClick={() => setSelectedOpening(opening)}
+                      >
+                        <div className="name">{opening.name}</div>
+                        <div className="moves">{opening.moves.join(' ')}</div>
+                      </div>
+                    ));
+                  })()}
+                  {(() => {
+                    let openings = OPENINGS;
+                    if (openingSearch) openings = searchOpenings(openingSearch);
+                    else if (openingFilter) openings = filterByFirstMove(openingFilter);
+                    return openings.length === 0 && (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#71717a' }}>
+                        No openings found
+                      </div>
+                    );
+                  })()}
+                </div>
+                {selectedOpening && (
+                  <div className="mode-buttons">
+                    <button
+                      className="mode-btn replay"
+                      onClick={() => {
+                        showToast('Replay mode coming soon', 'warning');
+                      }}
+                    >
+                      🔄 Replay (Demo)
+                    </button>
+                    <button
+                      className="mode-btn force"
+                      onClick={() => {
+                        showToast('Force mode coming soon', 'warning');
+                      }}
+                    >
+                      🔒 Force (Practice)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {toastMessage && (
+        <div className={`toast ${toastType}`}>
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }
