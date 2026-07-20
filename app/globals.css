@@ -528,14 +528,17 @@ h4 { margin: 0; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; 
   color: #f4f4f5;
 }
 
-/* Navigation Bar */
+/* Navigation Bar - Glassmorphism */
 .navbar {
-  background: #09090b;
-  border-bottom: 1px solid #27272a;
+  background: rgba(9, 9, 11, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0 20px;
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }
 
 .navbar-inner {
@@ -566,7 +569,7 @@ h4 { margin: 0; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; 
 }
 
 .brand-badge {
-  background: #e11d48;
+  background: linear-gradient(135deg, #e11d48, #be123c);
   color: #fff;
   font-size: 0.65em;
   padding: 2px 6px;
@@ -587,23 +590,25 @@ h4 { margin: 0; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; 
   padding: 8px 16px;
   text-decoration: none;
   color: #71717a;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s ease;
   min-width: 80px;
+  background: transparent;
 }
 
 .navbar-link:hover {
-  background: #18181b;
+  background: rgba(255, 255, 255, 0.06);
   color: #a1a1aa;
 }
 
 .navbar-link.active {
-  background: #1c1917;
+  background: rgba(225, 29, 72, 0.15);
   color: #f4f4f5;
+  box-shadow: 0 0 20px rgba(225, 29, 72, 0.1);
 }
 
 .navbar-link.active .link-label {
-  color: #e11d48;
+  color: #fb7185;
 }
 
 .link-label {
@@ -619,7 +624,7 @@ h4 { margin: 0; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; 
 }
 
 .navbar-link.active .link-desc {
-  color: #71717a;
+  color: #a1a1aa;
 }
 
 /* Responsive navigation */
