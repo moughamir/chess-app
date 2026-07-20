@@ -855,6 +855,10 @@ export default function Home() {
                         className="btn-modal-primary"
                         disabled={!pgnInput.trim()}
                         onClick={() => {
+                          if (parsedGames.length > 0) {
+                            loadGameFromPGN(parsedGames[selectedGameIndex]);
+                            return;
+                          }
                           const result = parsePGN(pgnInput);
                           if (result.error) {
                             setPgnError(result.error);
@@ -862,6 +866,9 @@ export default function Home() {
                           }
                           setParsedGames(result.games);
                           setSelectedGameIndex(0);
+                          if (result.games.length === 1) {
+                            loadGameFromPGN(result.games[0]);
+                          }
                         }}
                       >
                         {parsedGames.length > 1 ? 'Load Selected' : 'Parse PGN'}
@@ -896,7 +903,12 @@ export default function Home() {
                       <button
                         className="btn-modal-primary"
                         disabled={!fenInput.trim()}
-                        onClick={() => setFenError('')}
+                        onClick={() => {
+                          setFenError('');
+                          if (fenInput.trim()) {
+                            loadGameFromFEN(fenInput.trim());
+                          }
+                        }}
                       >
                         Load Position
                       </button>
@@ -922,6 +934,7 @@ export default function Home() {
                         <button
                           className="btn-modal-primary"
                           disabled={!chesscomUsername.trim() || chesscomLoading}
+                          onClick={loadChessComArchives}
                         >
                           {chesscomLoading && <span className="spinner" />}
                           Find Games
@@ -936,7 +949,7 @@ export default function Home() {
                         </p>
                         <div className="chesscom-list">
                           {chesscomArchives.map((archive, i) => (
-                            <div key={i} className="chesscom-item">
+                            <div key={i} className="chesscom-item" onClick={() => loadChessComGames(archive)}>
                               <div className="opponent">
                                 {archive.year}-{String(archive.month).padStart(2, '0')}
                               </div>
@@ -959,7 +972,7 @@ export default function Home() {
                         </p>
                         <div className="chesscom-list">
                           {chesscomGames.map((game, i) => (
-                            <div key={i} className="chesscom-item">
+                            <div key={i} className="chesscom-item" onClick={() => loadGameFromChessCom(game)}>
                               <div className="opponent">vs {game.opponent}</div>
                               <div className="meta">{game.date} — {game.result}</div>
                             </div>
