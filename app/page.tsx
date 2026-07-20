@@ -287,6 +287,24 @@ export default function Home() {
           if (newForceIndex >= selectedOpening.moves.length) {
             setOpeningMode(null);
             showToast('Opening completed! Free play now.', 'warning');
+          } else if (chess.turn() !== myColorRef.current) {
+            // Next move is opponent's — auto-play it
+            const opponentMoveSAN = selectedOpening.moves[newForceIndex];
+            const opponentMove = chess.move(opponentMoveSAN);
+            if (opponentMove) {
+              setTimeout(() => {
+                if (boardInstance.current) {
+                  boardInstance.current.position(chess.fen(), false);
+                }
+                highlightLastMove(opponentMove);
+                renderHistory();
+                setForceMoveIndex(newForceIndex + 1);
+                if (newForceIndex + 1 >= selectedOpening.moves.length) {
+                  setOpeningMode(null);
+                  showToast('Opening completed! Free play now.', 'warning');
+                }
+              }, 800);
+            }
           }
 
           if (chess.game_over()) {
@@ -1022,31 +1040,21 @@ export default function Home() {
                   ))}
                 </div>
                 <div className="opening-list">
-                  {(() => {
-                    let openings = OPENINGS;
-                    if (openingSearch) openings = searchOpenings(openingSearch);
-                    else if (openingFilter) openings = filterByFirstMove(openingFilter);
-                    return openings.map((opening, i) => (
-                      <div
-                        key={i}
-                        className={`opening-item ${selectedOpening?.name === opening.name ? 'selected' : ''}`}
-                        onClick={() => setSelectedOpening(opening)}
-                      >
-                        <div className="name">{opening.name}</div>
-                        <div className="moves">{opening.moves.join(' ')}</div>
-                      </div>
-                    ));
-                  })()}
-                  {(() => {
-                    let openings = OPENINGS;
-                    if (openingSearch) openings = searchOpenings(openingSearch);
-                    else if (openingFilter) openings = filterByFirstMove(openingFilter);
-                    return openings.length === 0 && (
-                      <div style={{ padding: '20px', textAlign: 'center', color: '#71717a' }}>
-                        No openings found
-                      </div>
-                    );
-                  })()}
+                  {getFilteredOpenings().map((opening, i) => (
+                    <div
+                      key={i}
+                      className={`opening-item ${selectedOpening?.name === opening.name ? 'selected' : ''}`}
+                      onClick={() => setSelectedOpening(opening)}
+                    >
+                      <div className="name">{opening.name}</div>
+                      <div className="moves">{opening.moves.join(' ')}</div>
+                    </div>
+                  ))}
+                  {getFilteredOpenings().length === 0 && (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#71717a' }}>
+                      No openings found
+                    </div>
+                  )}
                 </div>
                 {selectedOpening && (
                   <div className="mode-buttons">
