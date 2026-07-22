@@ -20,6 +20,7 @@
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/chess.js": "^0.13.7",
+    "@types/jsdom": "^28.0.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -76,7 +76,7 @@ describe('useEngine', () => {
   });
 
   it('should set loading state during calculation', async () => {
-    let resolvePromise;
+    let resolvePromise: (value: Response) => void;
     mockFetch.mockReturnValueOnce(new Promise((resolve) => {
       resolvePromise = resolve;
     }));

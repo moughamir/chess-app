@@ -1,18 +1,21 @@
 import { JSDOM } from 'jsdom';
-import { cleanup } from '@testing-library/react';
-import { afterEach } from 'bun:test';
 
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
   url: 'http://localhost',
   pretendToBeVisual: true,
 });
 
-(global as any).document = dom.window.document;
-(global as any).window = dom.window;
-(global as any).navigator = dom.window.navigator;
-(global as any).HTMLElement = dom.window.HTMLElement;
-(global as any).Node = dom.window.Node;
-(global as any).Event = dom.window.Event;
+const g = globalThis as Record<string, unknown>;
+g.document = dom.window.document;
+g.window = dom.window;
+g.navigator = dom.window.navigator;
+g.HTMLElement = dom.window.HTMLElement;
+g.Node = dom.window.Node;
+g.Event = dom.window.Event;
+
+// Dynamic import after globals are set so @testing-library/dom binds screen to document
+const { cleanup } = await import('@testing-library/react');
+const { afterEach } = await import('bun:test');
 
 afterEach(() => {
   cleanup();

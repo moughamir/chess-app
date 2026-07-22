@@ -43,16 +43,59 @@ function hashToKey(hash: string): number {
 export function evaluateBoard(game: Chess, myColor: string): number {
   let total = 0;
   const b = game.board();
+  const oppColor = myColor === 'w' ? 'b' : 'w';
+
+  // Find opponent king for proximity scoring
+  let oppKingRow = -1;
+  let oppKingCol = -1;
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const p = b[i][j];
+      if (p && p.type === 'k' && p.color === oppColor) {
+        oppKingRow = i;
+        oppKingCol = j;
+      }
+    }
+  }
+
   for (let i = 0; i < 8; i++) {
     for (let j = 0; j < 8; j++) {
       const piece = b[i][j];
       if (piece) {
         let val = PIECE_VALUES[piece.type];
-        if (CENTER_MASK & (1 << (i * 8 + j))) val += 30;
-        total += piece.color === myColor ? val : -val;
+
+        if (piece.color === myColor) {
+          // Center control
+          if (CENTER_MASK & (1 << (i * 8 + j))) val += 30;
+
+          // Back-rank penalty for undeveloped knights/bishops
+          if (piece.type === 'n' || piece.type === 'b') {
+            if (myColor === 'w' && i === 7) val -= 40;
+            if (myColor === 'b' && i === 0) val -= 40;
+          }
+
+          // King proximity: heavy pieces earn points near enemy king
+          if (oppKingRow >= 0 && piece.type !== 'p' && piece.type !== 'k') {
+            const distance = Math.abs(i - oppKingRow) + Math.abs(j - oppKingCol);
+            val += (14 - distance) * 10;
+          }
+
+          total += val;
+        } else {
+          total -= val;
+        }
       }
     }
   }
+
+  // Mobility scoring
+  const mobility = game.moves().length;
+  if (game.turn() === myColor) {
+    total += mobility * 0.5;
+  } else {
+    total -= mobility * 0.5;
+  }
+
   if (game.isCheckmate()) return game.turn() === myColor ? -10000 : 10000;
   if (game.isCheck()) total += game.turn() === myColor ? -50 : 50;
   return total;
@@ -210,6 +253,9 @@ export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000
 
       game.move(sans[i]);
 
+      // Draw avoidance: penalize moves leading to repetition
+      const isRepetition = game.isThreefoldRepetition();
+
       let val: number;
       if (d >= 3 && i > 0) {
         const margin = 50;
@@ -220,6 +266,8 @@ export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000
       } else {
         val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state);
       }
+
+      if (isRepetition) val -= 5000;
 
       game.undo();
 
