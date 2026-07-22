@@ -702,3 +702,92 @@ h4 { margin: 0; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; 
     display: none;
   }
 }
+
+/* Position Editor */
+.position-editor {
+  padding: 16px;
+}
+
+.editor-layout {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.piece-palette {
+  flex: 0 0 120px;
+}
+
+.palette-pieces {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.palette-piece {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border: 2px solid #333;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.palette-piece:hover {
+  border-color: #666;
+}
+
+.palette-piece.selected {
+  border-color: #e11d48;
+  background: rgba(225, 29, 72, 0.1);
+}
+
+.editor-board {
+  flex: 0 0 320px;
+}
+
+.editor-row {
+  display: flex;
+}
+
+.editor-square {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid #333;
+}
+
+.editor-square.light {
+  background: #f0d9b5;
+}
+
+.editor-square.dark {
+  background: #b58863;
+}
+
+.editor-square:hover {
+  opacity: 0.8;
+}
+
+.piece-symbol {
+  font-size: 28px;
+  user-select: none;
+}
+
+.editor-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 8px;
+}
