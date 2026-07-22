@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Chess } from 'chess.js';
-import { getBestMove, getNodeCount, resetNodeCount } from '@/lib/engine';
+import { getBestMove, getBookMove, getNodeCount, resetNodeCount } from '@/lib/engine';
 import { generateExplanation } from '@/lib/explanations';
 import { getLichessEval } from '@/lib/lichess';
 
@@ -22,6 +22,20 @@ export async function POST(request: NextRequest) {
     const start = Date.now();
     let result: any = null;
     let engine = 'custom';
+
+    const bookResult = getBookMove(fen);
+    if (bookResult) {
+      return Response.json({
+        bestMove: bookResult.move,
+        san: bookResult.move,
+        explanation: `Opening theory: ${bookResult.opening}`,
+        evaluation: 0,
+        depth: 0,
+        nodes: 0,
+        timeMs: 0,
+        engine: 'book',
+      });
+    }
 
     result = await getLichessEval(fen);
 
