@@ -108,3 +108,10 @@ export interface ToastProps {
   type: 'warning' | 'error' | '';
   onDismiss?: () => void;
 }
+
+// Saved Games
+export interface SavedGame {
+  name: string;
+  fen: string;
+  timestamp: number;
+}
