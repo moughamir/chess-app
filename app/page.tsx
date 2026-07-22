@@ -13,7 +13,7 @@ import { generateExplanation } from '@/lib/explanations';
 import { autoSave, saveGame } from '@/lib/storage';
 import { parsePGN, ParsedGame } from '@/lib/pgn-parser';
 import { ChessComGame } from '@/lib/chesscom-api';
-import type { Opening } from '@/lib/types';
+import type { Opening, TimeControl } from '@/lib/types';
 
 export default function Home() {
   const game = useChessGame();
@@ -25,6 +25,7 @@ export default function Home() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'warning' | 'error' | ''>('');
   const [engineStyle, setEngineStyle] = useState<'balanced' | 'aggressive'>('balanced');
+  const [timeControl, setTimeControl] = useState<TimeControl | null>(null);
   const [statusText, setStatusText] = useState('Preparing the board...');
   const [explanation, setExplanation] = useState<string | null>(null);
   const [actionButtonText, setActionButtonText] = useState<string | null>(null);
@@ -393,6 +394,8 @@ export default function Home() {
         onPlayerSideChange={(side) => game.startGame(side)}
         engineStyle={engineStyle}
         onEngineStyleChange={setEngineStyle}
+        timeControl={timeControl}
+        onTimeControlChange={setTimeControl}
         onLoadPGN={handleLoadPGN}
         onLoadFEN={handleLoadFEN}
         onLoadChessCom={handleLoadChessCom}

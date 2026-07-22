@@ -5,6 +5,7 @@ import { NewGameTab } from './NewGameTab';
 import { LoadGameTab } from './LoadGameTab';
 import { OpeningsTab } from './OpeningsTab';
 import { PositionEditor } from './PositionEditor';
+import type { TimeControl } from '@/lib/types';
 
 interface SetupModalProps {
   isOpen: boolean;
@@ -16,6 +17,8 @@ interface SetupModalProps {
   onPlayerSideChange: (side: 'white' | 'black') => void;
   engineStyle: 'balanced' | 'aggressive';
   onEngineStyleChange: (style: 'balanced' | 'aggressive') => void;
+  timeControl: TimeControl | null;
+  onTimeControlChange: (control: TimeControl | null) => void;
   onLoadPGN?: (game: import('@/lib/pgn-parser').ParsedGame) => void;
   onLoadFEN?: (fen: string) => void;
   onLoadChessCom?: (game: import('@/lib/chesscom-api').ChessComGame) => void;
@@ -33,6 +36,8 @@ export function SetupModal({
   onPlayerSideChange,
   engineStyle,
   onEngineStyleChange,
+  timeControl,
+  onTimeControlChange,
   onLoadPGN,
   onLoadFEN,
   onLoadChessCom,
@@ -83,6 +88,8 @@ export function SetupModal({
             onStartGame={onStartGame}
             engineStyle={engineStyle}
             onEngineStyleChange={onEngineStyleChange}
+            timeControl={timeControl}
+            onTimeControlChange={onTimeControlChange}
           />
         )}
 

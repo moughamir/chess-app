@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import type { TimeControl } from '@/lib/types';
 
 interface NewGameTabProps {
   playerSide: 'white' | 'black';
@@ -8,6 +9,8 @@ interface NewGameTabProps {
   onStartGame: () => void;
   engineStyle: 'balanced' | 'aggressive';
   onEngineStyleChange: (style: 'balanced' | 'aggressive') => void;
+  timeControl: TimeControl | null;
+  onTimeControlChange: (control: TimeControl | null) => void;
 }
 
 export function NewGameTab({
@@ -16,6 +19,8 @@ export function NewGameTab({
   onStartGame,
   engineStyle,
   onEngineStyleChange,
+  timeControl,
+  onTimeControlChange,
 }: NewGameTabProps) {
   return (
     <div>
@@ -59,6 +64,28 @@ export function NewGameTab({
             <div className="label">Aggressive</div>
             <div className="desc">Attack-focused</div>
           </div>
+        </div>
+      </div>
+      <div className="time-control-picker">
+        <p style={{ color: '#a1a1aa', fontSize: '0.9em', marginBottom: '8px' }}>
+          Time control:
+        </p>
+        <div className="time-control-options">
+          {[
+            { value: null, label: 'No clock' },
+            { value: 'bullet', label: '⚡ Bullet' },
+            { value: 'blitz', label: '🔥 Blitz' },
+            { value: 'rapid', label: '⏱️ Rapid' },
+            { value: 'classical', label: '🏛️ Classical' },
+          ].map(option => (
+            <div
+              key={option.value ?? 'none'}
+              className={`time-control-option ${timeControl === option.value ? 'selected' : ''}`}
+              onClick={() => onTimeControlChange(option.value as TimeControl | null)}
+            >
+              {option.label}
+            </div>
+          ))}
         </div>
       </div>
       <button className="btn-modal-primary" onClick={onStartGame}>

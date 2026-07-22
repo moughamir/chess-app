@@ -266,6 +266,36 @@ h4 { margin: 0; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; 
   font-size: 0.8em;
 }
 
+/* Time Control Picker */
+.time-control-picker {
+  margin-bottom: 16px;
+}
+
+.time-control-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.time-control-option {
+  padding: 8px 12px;
+  background: #27272a;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+}
+
+.time-control-option:hover {
+  border-color: #3f3f46;
+}
+
+.time-control-option.selected {
+  border-color: #e11d48;
+  background: rgba(225, 29, 72, 0.1);
+}
+
 /* Input Fields */
 .modal-input,
 .modal-textarea {
