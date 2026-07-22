@@ -24,6 +24,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'new' | 'load' | 'openings'>('new');
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'warning' | 'error' | ''>('');
+  const [engineStyle, setEngineStyle] = useState<'balanced' | 'aggressive'>('balanced');
   const [statusText, setStatusText] = useState('Preparing the board...');
   const [explanation, setExplanation] = useState<string | null>(null);
   const [actionButtonText, setActionButtonText] = useState<string | null>(null);
@@ -383,6 +384,8 @@ export default function Home() {
         onStartGame={startGame}
         playerSide={game.playerSide}
         onPlayerSideChange={(side) => game.startGame(side)}
+        engineStyle={engineStyle}
+        onEngineStyleChange={setEngineStyle}
         onLoadPGN={handleLoadPGN}
         onLoadFEN={handleLoadFEN}
         onLoadChessCom={handleLoadChessCom}

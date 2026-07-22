@@ -13,6 +13,8 @@ interface SetupModalProps {
   onStartGame: () => void;
   playerSide: 'white' | 'black';
   onPlayerSideChange: (side: 'white' | 'black') => void;
+  engineStyle: 'balanced' | 'aggressive';
+  onEngineStyleChange: (style: 'balanced' | 'aggressive') => void;
   onLoadPGN?: (game: import('@/lib/pgn-parser').ParsedGame) => void;
   onLoadFEN?: (fen: string) => void;
   onLoadChessCom?: (game: import('@/lib/chesscom-api').ChessComGame) => void;
@@ -27,6 +29,8 @@ export function SetupModal({
   onStartGame,
   playerSide,
   onPlayerSideChange,
+  engineStyle,
+  onEngineStyleChange,
   onLoadPGN,
   onLoadFEN,
   onLoadChessCom,
@@ -68,6 +72,8 @@ export function SetupModal({
             playerSide={playerSide}
             onPlayerSideChange={onPlayerSideChange}
             onStartGame={onStartGame}
+            engineStyle={engineStyle}
+            onEngineStyleChange={onEngineStyleChange}
           />
         )}
 
