@@ -18,6 +18,8 @@ interface GamePanelProps {
   showActionButton: boolean;
   onAction: () => void;
   onNewGame: () => void;
+  onSave?: () => void;
+  showSaveButton?: boolean;
 }
 
 export function GamePanel({
@@ -33,6 +35,8 @@ export function GamePanel({
   showActionButton,
   onAction,
   onNewGame,
+  onSave,
+  showSaveButton,
 }: GamePanelProps) {
   if (!gameStarted) {
     return null;
@@ -54,6 +58,8 @@ export function GamePanel({
         actionButtonText={actionButtonText}
         showActionButton={showActionButton}
         onAction={onAction}
+        onSave={onSave}
+        showSaveButton={showSaveButton}
       />
 
       <div className="history-header">
