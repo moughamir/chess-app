@@ -21,7 +21,7 @@ export default function Home() {
   const board = useBoardInteraction();
 
   const [modalOpen, setModalOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<'new' | 'load' | 'openings'>('new');
+  const [activeTab, setActiveTab] = useState<'new' | 'load' | 'openings' | 'setup'>('new');
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'warning' | 'error' | ''>('');
   const [engineStyle, setEngineStyle] = useState<'balanced' | 'aggressive'>('balanced');

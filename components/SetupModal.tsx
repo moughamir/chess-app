@@ -4,11 +4,12 @@ import React from 'react';
 import { NewGameTab } from './NewGameTab';
 import { LoadGameTab } from './LoadGameTab';
 import { OpeningsTab } from './OpeningsTab';
+import { PositionEditor } from './PositionEditor';
 
 interface SetupModalProps {
   isOpen: boolean;
-  activeTab: 'new' | 'load' | 'openings';
-  onTabChange: (tab: 'new' | 'load' | 'openings') => void;
+  activeTab: 'new' | 'load' | 'openings' | 'setup';
+  onTabChange: (tab: 'new' | 'load' | 'openings' | 'setup') => void;
   onClose: () => void;
   onStartGame: () => void;
   playerSide: 'white' | 'black';
@@ -19,6 +20,7 @@ interface SetupModalProps {
   onLoadFEN?: (fen: string) => void;
   onLoadChessCom?: (game: import('@/lib/chesscom-api').ChessComGame) => void;
   onSelectOpening?: (opening: import('@/lib/openings').Opening, mode: 'replay' | 'force') => void;
+  onPositionReady?: (fen: string, playerSide: 'white' | 'black') => void;
 }
 
 export function SetupModal({
@@ -35,6 +37,7 @@ export function SetupModal({
   onLoadFEN,
   onLoadChessCom,
   onSelectOpening,
+  onPositionReady,
 }: SetupModalProps) {
   if (!isOpen) return null;
 
@@ -65,6 +68,12 @@ export function SetupModal({
           >
             📖 Openings
           </button>
+          <button
+            className={`modal-tab ${activeTab === 'setup' ? 'active' : ''}`}
+            onClick={() => onTabChange('setup')}
+          >
+            🎯 Setup
+          </button>
         </div>
 
         {activeTab === 'new' && (
@@ -87,6 +96,10 @@ export function SetupModal({
 
         {activeTab === 'openings' && (
           <OpeningsTab onSelectOpening={onSelectOpening} />
+        )}
+
+        {activeTab === 'setup' && (
+          <PositionEditor onPositionReady={onPositionReady} />
         )}
       </div>
     </div>

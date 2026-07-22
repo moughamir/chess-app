@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Chess } from 'chess.js';
 
 interface PositionEditorProps {
-  onPositionReady: (fen: string, playerSide: 'white' | 'black') => void;
+  onPositionReady?: (fen: string, playerSide: 'white' | 'black') => void;
 }
 
 type PieceType = 'k' | 'q' | 'r' | 'b' | 'n' | 'p';
@@ -90,7 +90,9 @@ export function PositionEditor({ onPositionReady }: PositionEditorProps) {
   // Start game with current position
   const handleStart = useCallback(() => {
     const fen = generateFen();
-    onPositionReady(fen, playerSide);
+    if (onPositionReady) {
+      onPositionReady(fen, playerSide);
+    }
   }, [generateFen, playerSide, onPositionReady]);
 
   // Clear board
