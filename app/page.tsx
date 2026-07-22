@@ -230,6 +230,13 @@ export default function Home() {
     gameStartedRef.current = true;
   }, [game]);
 
+  const handlePositionReady = useCallback((fen: string, playerSide: 'white' | 'black') => {
+    game.loadFromFEN(fen);
+    game.startGame(playerSide);
+    setModalOpen(false);
+    gameStartedRef.current = true;
+  }, [game]);
+
   const handleLoadChessCom = useCallback((chessComGame: ChessComGame) => {
     const result = parsePGN(chessComGame.pgn);
     if (result.error || result.games.length === 0) {
@@ -390,6 +397,7 @@ export default function Home() {
         onLoadFEN={handleLoadFEN}
         onLoadChessCom={handleLoadChessCom}
         onSelectOpening={handleSelectOpening}
+        onPositionReady={handlePositionReady}
       />
 
       <Toast message={toastMessage} type={toastType} onDismiss={dismissToast} />
