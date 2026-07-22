@@ -23,13 +23,13 @@ describe('Board', () => {
   it('should render pieces from FEN', () => {
     render(<Board {...defaultProps} />);
     
-    // Black king should be on e8
+    // Black king should be on e8 (now renders as SVG)
     const e8 = screen.getByTestId('square-e8');
-    expect(e8.textContent).toContain('♚');
+    expect(e8.innerHTML).toContain('svg');
     
-    // White pawn on e4
+    // White pawn on e4 (now renders as SVG)
     const e4 = screen.getByTestId('square-e4');
-    expect(e4.textContent).toContain('♙');
+    expect(e4.innerHTML).toContain('svg');
   });
 
   it('should call onSquareClick when square is clicked', () => {
