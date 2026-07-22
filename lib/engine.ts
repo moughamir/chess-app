@@ -2,6 +2,8 @@ import { Chess } from 'chess.js';
 import { PIECE_VALUES } from './constants';
 import { getBookMove } from './openings';
 
+export type EngineStyle = 'balanced' | 'aggressive';
+
 let nodeCount = 0;
 export function getNodeCount(): number { return nodeCount; }
 export function resetNodeCount(): void { nodeCount = 0; }
@@ -41,7 +43,60 @@ function hashToKey(hash: string): number {
   return h;
 }
 
-export function evaluateBoard(game: Chess, myColor: string): number {
+function applyAggressiveBonuses(game: Chess, myColor: string, baseScore: number): number {
+  let bonus = 0;
+  const b = game.board();
+  const oppColor = myColor === 'w' ? 'b' : 'w';
+
+  // Center control bonus (d4, d5, e4, e5)
+  const centerSquares = [[3, 3], [3, 4], [4, 3], [4, 4]];
+  for (const [r, c] of centerSquares) {
+    const piece = b[r][c];
+    if (piece) {
+      bonus += piece.color === myColor ? 15 : -15;
+    }
+  }
+
+  // Piece activity bonus: reward pieces developed beyond back rank
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const piece = b[i][j];
+      if (!piece || piece.color !== myColor) continue;
+      if (piece.type === 'p' || piece.type === 'k') continue;
+      const backRank = myColor === 'w' ? 7 : 0;
+      const advancedRank = myColor === 'w' ? (7 - i) : i;
+      if (advancedRank > 1) bonus += advancedRank * 4;
+    }
+  }
+
+  // King attack bonus: pieces near opponent king
+  let oppKingRow = -1;
+  let oppKingCol = -1;
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const p = b[i][j];
+      if (p && p.type === 'k' && p.color === oppColor) {
+        oppKingRow = i;
+        oppKingCol = j;
+      }
+    }
+  }
+  if (oppKingRow >= 0) {
+    for (let i = 0; i < 8; i++) {
+      for (let j = 0; j < 8; j++) {
+        const piece = b[i][j];
+        if (!piece || piece.color !== myColor) continue;
+        if (piece.type === 'p' || piece.type === 'k') continue;
+        const distance = Math.abs(i - oppKingRow) + Math.abs(j - oppKingCol);
+        if (distance <= 3) bonus += (4 - distance) * 15;
+      }
+    }
+  }
+
+  return baseScore + bonus;
+}
+
+export function evaluateBoard(game: Chess, myColor: string, style: EngineStyle = 'balanced'): number {
   let total = 0;
   const b = game.board();
   const oppColor = myColor === 'w' ? 'b' : 'w';
@@ -99,6 +154,11 @@ export function evaluateBoard(game: Chess, myColor: string): number {
 
   if (game.isCheckmate()) return game.turn() === myColor ? -10000 : 10000;
   if (game.isCheck()) total += game.turn() === myColor ? -50 : 50;
+
+  if (style === 'aggressive') {
+    total = applyAggressiveBonuses(game, myColor, total);
+  }
+
   return total;
 }
 
@@ -149,9 +209,10 @@ export function minimax(
   isMaximizing: boolean,
   myColor: string,
   maxDepth: number,
-  state: MoveScore
+  state: MoveScore,
+  style: EngineStyle = 'balanced'
 ): number {
-  if (depth === 0 || game.isGameOver()) return evaluateBoard(game, myColor);
+  if (depth === 0 || game.isGameOver()) return evaluateBoard(game, myColor, style);
   nodeCount++;
 
   const hash = game.hash();
@@ -181,9 +242,9 @@ export function minimax(
 
   for (let i = 0; i < moves.length; i++) {
     game.move(moves[i]);
-    const val = isMaximizing
-      ? minimax(game, depth - 1 + extension, alpha, beta, false, myColor, maxDepth, state)
-      : minimax(game, depth - 1 + extension, alpha, beta, true, myColor, maxDepth, state);
+      const val = isMaximizing
+      ? minimax(game, depth - 1 + extension, alpha, beta, false, myColor, maxDepth, state, style)
+      : minimax(game, depth - 1 + extension, alpha, beta, true, myColor, maxDepth, state, style);
     game.undo();
 
     if (isMaximizing) {
@@ -226,7 +287,7 @@ export function minimax(
   return value;
 }
 
-export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000): { bestMove: any; evaluation: number; depth: number } {
+export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000, style: EngineStyle = 'balanced'): { bestMove: any; evaluation: number; depth: number } {
   const game = new Chess(fen);
   const myColor = game.turn();
   const state = createMoveScore(maxDepth);
@@ -260,12 +321,12 @@ export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000
       let val: number;
       if (d >= 3 && i > 0) {
         const margin = 50;
-        val = minimax(game, d - 1, prevScore - margin, prevScore + margin, false, myColor, d, state);
+        val = minimax(game, d - 1, prevScore - margin, prevScore + margin, false, myColor, d, state, style);
         if (val <= prevScore - margin || val >= prevScore + margin) {
-          val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state);
+          val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state, style);
         }
       } else {
-        val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state);
+        val = minimax(game, d - 1, -Infinity, Infinity, false, myColor, d, state, style);
       }
 
       if (isRepetition) val -= 5000;
