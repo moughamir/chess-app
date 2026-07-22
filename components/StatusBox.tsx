@@ -8,6 +8,8 @@ interface StatusBoxProps {
   actionButtonText: string | null;
   showActionButton: boolean;
   onAction: () => void;
+  onSave?: () => void;
+  showSaveButton?: boolean;
 }
 
 export function StatusBox({
@@ -18,6 +20,8 @@ export function StatusBox({
   actionButtonText,
   showActionButton,
   onAction,
+  onSave,
+  showSaveButton,
 }: StatusBoxProps) {
   return (
     <div className="status-box">
@@ -27,11 +31,18 @@ export function StatusBox({
       {showExplanation && explanation && (
         <div className="explanation">{explanation}</div>
       )}
-      {showActionButton && actionButtonText && (
-        <button className="action-button" onClick={onAction}>
-          {actionButtonText}
-        </button>
-      )}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {showActionButton && actionButtonText && (
+          <button className="action-button" onClick={onAction}>
+            {actionButtonText}
+          </button>
+        )}
+        {showSaveButton && onSave && (
+          <button className="action-button" onClick={onSave}>
+            💾 Save Game
+          </button>
+        )}
+      </div>
     </div>
   );
 }

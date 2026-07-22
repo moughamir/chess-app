@@ -95,6 +95,8 @@ export interface StatusBoxProps {
   actionButtonText: string | null;
   showActionButton: boolean;
   onAction: () => void;
+  onSave?: () => void;
+  showSaveButton?: boolean;
 }
 
 // Move History
