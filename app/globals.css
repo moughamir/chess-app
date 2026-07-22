@@ -829,3 +829,63 @@ button.last-move {
   display: flex;
   gap: 8px;
 }
+
+/* Chess Clock */
+.chess-clock-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.chess-clock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #18181b;
+  border: 2px solid #27272a;
+  border-radius: 8px;
+  font-family: monospace;
+  transition: all 0.3s;
+}
+
+.chess-clock.active {
+  border-color: #e11d48;
+  background: #1c1917;
+}
+
+.chess-clock.low-time {
+  border-color: #f59e0b;
+}
+
+.chess-clock.critical-time {
+  border-color: #ef4444;
+  animation: pulse-clock 1s infinite;
+}
+
+@keyframes pulse-clock {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.clock-icon {
+  font-size: 20px;
+}
+
+.clock-side {
+  color: #a1a1aa;
+  font-size: 0.9em;
+}
+
+.clock-time {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #f4f4f5;
+  min-width: 80px;
+  text-align: right;
+}
+
+.chess-clock.critical-time .clock-time {
+  color: #ef4444;
+}
