@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js';
 import { PIECE_VALUES } from './constants';
+import { getBookMove } from './openings';
 
 let nodeCount = 0;
 export function getNodeCount(): number { return nodeCount; }
@@ -289,3 +290,5 @@ export function getBestMove(fen: string, maxDepth: number, timeMs: number = 5000
 
   return { bestMove, evaluation: bestValue, depth: completedDepth };
 }
+
+export { getBookMove } from './openings';
