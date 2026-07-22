@@ -100,8 +100,8 @@ export default function Home() {
     setActionButtonText(null);
     expectingEngineResult.current = true;
 
-    await engine.calculateBestMove(chess.fen(), 3);
-  }, [game.chess, engine.calculateBestMove]);
+    await engine.calculateBestMove(chess.fen(), 3, engineStyle);
+  }, [game.chess, engine.calculateBestMove, engineStyle]);
 
   const handleSquareClick = useCallback((square: string) => {
     const chess = game.chess;

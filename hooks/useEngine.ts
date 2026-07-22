@@ -8,7 +8,7 @@ interface EngineState {
 }
 
 interface UseEngineReturn extends EngineState {
-  calculateBestMove: (fen: string, depth: number) => Promise<void>;
+  calculateBestMove: (fen: string, depth: number, style?: 'balanced' | 'aggressive') => Promise<void>;
 }
 
 export function useEngine(): UseEngineReturn {
@@ -18,14 +18,14 @@ export function useEngine(): UseEngineReturn {
     lastResult: null,
   });
 
-  const calculateBestMove = useCallback(async (fen: string, depth: number) => {
+  const calculateBestMove = useCallback(async (fen: string, depth: number, style?: 'balanced' | 'aggressive') => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
       const response = await fetch('/api/engine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fen, depth }),
+        body: JSON.stringify({ fen, depth, style }),
       });
 
       if (!response.ok) {
