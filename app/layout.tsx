@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import NavBar from "./components/NavBar";
 import "./globals.css";
 
@@ -15,17 +14,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css" />
-      </head>
       <body>
         <NavBar />
         <main className="main-content">
           {children}
         </main>
-        <Script src="https://code.jquery.com/jquery-3.5.1.min.js" strategy="beforeInteractive" />
-        <Script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js" strategy="beforeInteractive" />
-        <Script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js" strategy="beforeInteractive" />
       </body>
     </html>
   );
