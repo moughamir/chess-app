@@ -64,8 +64,12 @@ import { Chess } from 'chess.js';
 export function positionToFen(moves: string[]): string {
   const chess = new Chess();
   for (const move of moves) {
-    const result = chess.move(move);
-    if (!result) break;
+    try {
+      const result = chess.move(move);
+      if (!result) break;
+    } catch {
+      break;
+    }
   }
   return chess.fen();
 }
@@ -79,8 +83,12 @@ export function getBookMove(fen: string): { move: string; opening: string } | nu
   for (const opening of OPENINGS) {
     const chess = new Chess();
     for (let i = 0; i < opening.moves.length; i++) {
-      const result = chess.move(opening.moves[i]);
-      if (!result) break;
+      try {
+        const result = chess.move(opening.moves[i]);
+        if (!result) break;
+      } catch {
+        break;
+      }
       const currentFen = normalizeFen(chess.fen());
       if (currentFen === normalizedInput && i + 1 < opening.moves.length) {
         return { move: opening.moves[i + 1], opening: opening.name };
