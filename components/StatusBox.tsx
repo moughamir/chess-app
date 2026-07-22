@@ -3,7 +3,6 @@ import React from 'react';
 interface StatusBoxProps {
   statusText: string;
   isThinking: boolean;
-  isUserTurn: boolean;
   explanation: string | null;
   showExplanation: boolean;
   actionButtonText: string | null;

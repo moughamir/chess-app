@@ -20,9 +20,7 @@ interface UseChessGameReturn {
   isGameOver: () => boolean;
   isCheckmate: () => boolean;
   setSourceSquare: (square: string | null) => void;
-  setOpeningMode: (mode: 'replay' | 'force' | null) => void;
-  setSelectedOpening: (opening: Opening | null) => void;
-  setForceMoveIndex: (index: number) => void;
+  setOpening: (opts: { mode?: 'replay' | 'force' | null; opening?: Opening | null; forceMoveIndex?: number }) => void;
 }
 
 export function useChessGame(): UseChessGameReturn {
@@ -93,6 +91,12 @@ export function useChessGame(): UseChessGameReturn {
     return chess?.isCheckmate() ?? false;
   }, [chess]);
 
+  const setOpening = useCallback((opts: { mode?: 'replay' | 'force' | null; opening?: Opening | null; forceMoveIndex?: number }) => {
+    if (opts.mode !== undefined) setOpeningMode(opts.mode);
+    if (opts.opening !== undefined) setSelectedOpening(opts.opening);
+    if (opts.forceMoveIndex !== undefined) setForceMoveIndex(opts.forceMoveIndex);
+  }, []);
+
   return {
     chess,
     playerSide,
@@ -111,8 +115,6 @@ export function useChessGame(): UseChessGameReturn {
     isGameOver,
     isCheckmate,
     setSourceSquare,
-    setOpeningMode,
-    setSelectedOpening,
-    setForceMoveIndex,
+    setOpening,
   };
 }

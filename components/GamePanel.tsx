@@ -12,7 +12,6 @@ interface GamePanelProps {
   isEngineLoading: boolean;
   statusText: string;
   isThinking: boolean;
-  isUserTurn: boolean;
   explanation: string | null;
   showExplanation: boolean;
   actionButtonText: string | null;
@@ -28,7 +27,6 @@ export function GamePanel({
   isEngineLoading,
   statusText,
   isThinking,
-  isUserTurn,
   explanation,
   showExplanation,
   actionButtonText,
@@ -51,7 +49,6 @@ export function GamePanel({
       <StatusBox
         statusText={statusText}
         isThinking={isThinking}
-        isUserTurn={isUserTurn}
         explanation={explanation}
         showExplanation={showExplanation}
         actionButtonText={actionButtonText}

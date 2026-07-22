@@ -90,7 +90,6 @@ export interface BoardProps {
 export interface StatusBoxProps {
   statusText: string;
   isThinking: boolean;
-  isUserTurn: boolean;
   explanation: string | null;
   showExplanation: boolean;
   actionButtonText: string | null;
@@ -107,4 +106,5 @@ export interface MoveHistoryProps {
 export interface ToastProps {
   message: string;
   type: 'warning' | 'error' | '';
+  onDismiss?: () => void;
 }

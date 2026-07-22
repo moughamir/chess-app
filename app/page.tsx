@@ -26,7 +26,6 @@ export default function Home() {
   const [statusText, setStatusText] = useState('Preparing the board...');
   const [explanation, setExplanation] = useState<string | null>(null);
   const [actionButtonText, setActionButtonText] = useState<string | null>(null);
-  const [isUserTurn, setIsUserTurn] = useState(false);
 
   const expectingEngineResult = useRef(false);
   const gameStartedRef = useRef(false);
@@ -36,14 +35,18 @@ export default function Home() {
     setToastType(type);
   }, []);
 
+  const dismissToast = useCallback(() => {
+    setToastMessage('');
+    setToastType('');
+  }, []);
+
   const updateStatusUI = useCallback((systemMove: any = null, serverExplanation?: string) => {
     const chess = game.chess;
     if (!chess) return;
 
     if (chess.turn() === game.oppColor) {
-      setIsUserTurn(true);
       if (systemMove) {
-        setStatusText(`🔥 System Played: <b style="color:#e11d48">${systemMove.san}</b><br><br>👉 CLICK opponent's piece to match move.`);
+        setStatusText(`🔥 System Played: ${systemMove.san} — CLICK opponent's piece to match move.`);
         setExplanation(serverExplanation || generateExplanation(systemMove));
         setActionButtonText("🔄 Undo System Move & Play Manually");
       } else {
@@ -52,7 +55,6 @@ export default function Home() {
         setActionButtonText(null);
       }
     } else {
-      setIsUserTurn(false);
       setStatusText("⏳ Thinking...");
       setExplanation(null);
       setActionButtonText(null);
@@ -75,7 +77,6 @@ export default function Home() {
     const chess = game.chess;
     if (!chess) return;
 
-    setIsUserTurn(false);
     setStatusText('🧠 Calculating lethal move...');
     setExplanation(null);
     setActionButtonText(null);
@@ -124,10 +125,10 @@ export default function Home() {
           board.setLastMove({ from: move.from, to: move.to });
 
           const newForceIndex = game.forceMoveIndex + 1;
-          game.setForceMoveIndex(newForceIndex);
+          game.setOpening({ forceMoveIndex: newForceIndex });
 
           if (newForceIndex >= game.selectedOpening.moves.length) {
-            game.setOpeningMode(null);
+            game.setOpening({ mode: null });
             showToast('Opening completed! Free play now.', 'warning');
           } else if (chess.turn() !== game.myColor) {
             const opponentMoveSAN = game.selectedOpening.moves[newForceIndex];
@@ -135,9 +136,9 @@ export default function Home() {
             if (opponentMove) {
               setTimeout(() => {
                 board.setLastMove({ from: opponentMove.from, to: opponentMove.to });
-                game.setForceMoveIndex(newForceIndex + 1);
+                game.setOpening({ forceMoveIndex: newForceIndex + 1 });
                 if (game.selectedOpening && newForceIndex + 1 >= game.selectedOpening.moves.length) {
-                  game.setOpeningMode(null);
+                  game.setOpening({ mode: null });
                   showToast('Opening completed! Free play now.', 'warning');
                 }
               }, 800);
@@ -167,8 +168,7 @@ export default function Home() {
         } else if (chess.turn() === game.myColor) {
           startEngineCalculation();
         } else {
-          setIsUserTurn(true);
-          setStatusText(`👤 You Played: <b style="color:#34d399">${move.san}</b><br><br>👉 Waiting for opponent's real move...`);
+          setStatusText(`👤 You Played: ${move.san} — Waiting for opponent's real move...`);
           setExplanation(generateExplanation(move));
           setActionButtonText(null);
         }
@@ -185,11 +185,9 @@ export default function Home() {
     if (!chess) return;
 
     if (chess.turn() === game.myColor) {
-      setIsUserTurn(false);
       setStatusText("⏸️ System Paused. Play manually or let AI decide.");
       setActionButtonText("🧠 Let AI Calculate");
     } else {
-      setIsUserTurn(true);
       setStatusText("👉 Waiting for opponent's correct move...");
       setActionButtonText(null);
     }
@@ -226,11 +224,7 @@ export default function Home() {
 
   const handleSelectOpening = useCallback((opening: Opening, mode: 'replay' | 'force') => {
     game.startGame(game.playerSide);
-    game.setOpeningMode(mode);
-    game.setSelectedOpening(opening);
-    if (mode === 'force') {
-      game.setForceMoveIndex(0);
-    }
+    game.setOpening({ mode, opening, forceMoveIndex: mode === 'force' ? 0 : undefined });
     setModalOpen(false);
 
     if (mode === 'replay') {
@@ -239,7 +233,7 @@ export default function Home() {
         const replayNextMove = () => {
           const chess = game.chess;
           if (!chess || moveIndex >= opening.moves.length) {
-            game.setOpeningMode(null);
+            game.setOpening({ mode: null });
             updateStatusUI();
             return;
           }
@@ -250,7 +244,7 @@ export default function Home() {
             setTimeout(replayNextMove, 800);
           } else {
             showToast(`Invalid move in opening: ${opening.moves[moveIndex]}`, 'error');
-            game.setOpeningMode(null);
+            game.setOpening({ mode: null });
           }
         };
         setTimeout(replayNextMove, 500);
@@ -350,7 +344,6 @@ export default function Home() {
             isEngineLoading={engine.loading}
             statusText={statusText}
             isThinking={engine.loading}
-            isUserTurn={isUserTurn}
             explanation={explanation}
             showExplanation={!!explanation}
             actionButtonText={actionButtonText}
@@ -375,7 +368,7 @@ export default function Home() {
         onSelectOpening={handleSelectOpening}
       />
 
-      <Toast message={toastMessage} type={toastType} />
+      <Toast message={toastMessage} type={toastType} onDismiss={dismissToast} />
     </div>
   );
 }
