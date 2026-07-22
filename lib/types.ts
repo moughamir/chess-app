@@ -117,3 +117,13 @@ export interface SavedGame {
   fen: string;
   timestamp: number;
 }
+
+// Time Controls
+export type TimeControl = 'bullet' | 'blitz' | 'rapid' | 'classical';
+
+export const TIME_CONTROL_PRESETS: Record<TimeControl, number> = {
+  bullet: 60 * 1000,      // 1 minute
+  blitz: 3 * 60 * 1000,   // 3 minutes
+  rapid: 10 * 60 * 1000,  // 10 minutes
+  classical: 30 * 60 * 1000, // 30 minutes
+};
