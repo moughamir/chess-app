@@ -10,6 +10,7 @@ import { GamePanel } from '@/components/GamePanel';
 import { SetupModal } from '@/components/SetupModal';
 import { Toast } from '@/components/Toast';
 import { generateExplanation } from '@/lib/explanations';
+import { autoSave, saveGame } from '@/lib/storage';
 import { parsePGN, ParsedGame } from '@/lib/pgn-parser';
 import { ChessComGame } from '@/lib/chesscom-api';
 import type { Opening } from '@/lib/types';
@@ -39,6 +40,22 @@ export default function Home() {
     setToastMessage('');
     setToastType('');
   }, []);
+
+  const handleManualSave = useCallback(() => {
+    const name = prompt('Enter game name:');
+    if (!name?.trim()) return;
+
+    const chess = game.chess;
+    if (!chess) return;
+
+    saveGame({
+      name: name.trim(),
+      fen: chess.fen(),
+      timestamp: Date.now(),
+    });
+
+    showToast('Game saved!', 'warning');
+  }, [game.chess, showToast]);
 
   const updateStatusUI = useCallback((systemMove: any = null, serverExplanation?: string) => {
     const chess = game.chess;
@@ -162,6 +179,7 @@ export default function Home() {
 
       if (move) {
         board.setLastMove({ from: move.from, to: move.to });
+        autoSave(chess.fen());
 
         if (chess.isGameOver()) {
           handleGameOver();
@@ -268,6 +286,7 @@ export default function Home() {
         const move = game.makeMove(moveObj.from, moveObj.to);
         if (move) {
           board.setLastMove({ from: move.from, to: move.to });
+          autoSave(chess.fen());
 
           if (chess.isGameOver()) {
             handleGameOver();
@@ -350,6 +369,8 @@ export default function Home() {
             showActionButton={!!actionButtonText}
             onAction={stepBack}
             onNewGame={() => setModalOpen(true)}
+            onSave={handleManualSave}
+            showSaveButton={game.gameStarted && !game.chess?.isGameOver()}
           />
         )}
       </div>
