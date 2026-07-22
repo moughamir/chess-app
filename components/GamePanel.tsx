@@ -1,0 +1,76 @@
+'use client';
+
+import React from 'react';
+import { StatusBox } from './StatusBox';
+import { MoveHistory } from './MoveHistory';
+import type { GameState, EngineResult } from '@/lib/types';
+
+interface GamePanelProps {
+  gameStarted: boolean;
+  gameState: GameState;
+  engineResult: EngineResult | null;
+  isEngineLoading: boolean;
+  statusText: string;
+  isThinking: boolean;
+  isUserTurn: boolean;
+  explanation: string | null;
+  showExplanation: boolean;
+  actionButtonText: string | null;
+  showActionButton: boolean;
+  onAction: () => void;
+  onNewGame: () => void;
+}
+
+export function GamePanel({
+  gameStarted,
+  gameState,
+  engineResult,
+  isEngineLoading,
+  statusText,
+  isThinking,
+  isUserTurn,
+  explanation,
+  showExplanation,
+  actionButtonText,
+  showActionButton,
+  onAction,
+  onNewGame,
+}: GamePanelProps) {
+  if (!gameStarted) {
+    return null;
+  }
+
+  return (
+    <div id="game-section">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+        <button className="btn-new-game" onClick={onNewGame}>
+          ♟ New Game
+        </button>
+      </div>
+      
+      <StatusBox
+        statusText={statusText}
+        isThinking={isThinking}
+        isUserTurn={isUserTurn}
+        explanation={explanation}
+        showExplanation={showExplanation}
+        actionButtonText={actionButtonText}
+        showActionButton={showActionButton}
+        onAction={onAction}
+      />
+
+      <div className="history-header">
+        <h4>Move History</h4>
+        {gameState.chess && gameState.chess.history().length > 0 && (
+          <button className="btn-small" onClick={onAction} title="Undo Error">
+            ⏪ Step Back
+          </button>
+        )}
+      </div>
+
+      <div id="history-wrapper">
+        <MoveHistory moves={gameState.chess?.history() ?? []} />
+      </div>
+    </div>
+  );
+}
