@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { parsePGN, getGamePreview, ParsedGame } from '@/lib/pgn-parser';
 import { fetchArchives, fetchGames, Archive, ChessComGame } from '@/lib/chesscom-api';
+import { getSavedGames, deleteGame } from '@/lib/storage';
+import type { SavedGame } from '@/lib/types';
 
 interface LoadGameTabProps {
   onLoadPGN?: (game: ParsedGame) => void;
@@ -11,7 +13,7 @@ interface LoadGameTabProps {
 }
 
 export function LoadGameTab({ onLoadPGN, onLoadFEN, onLoadChessCom }: LoadGameTabProps) {
-  const [loadSubTab, setLoadSubTab] = useState<'pgn' | 'fen' | 'chesscom'>('pgn');
+  const [loadSubTab, setLoadSubTab] = useState<'pgn' | 'fen' | 'chesscom' | 'saved'>('pgn');
 
   // PGN state
   const [pgnInput, setPgnInput] = useState('');
@@ -30,6 +32,29 @@ export function LoadGameTab({ onLoadPGN, onLoadFEN, onLoadChessCom }: LoadGameTa
   const [chesscomLoading, setChesscomLoading] = useState(false);
   const [chesscomError, setChesscomError] = useState('');
   const [chesscomStep, setChesscomStep] = useState<'username' | 'archives' | 'games'>('username');
+
+  // Saved games state
+  const [savedGames, setSavedGames] = useState<SavedGame[]>([]);
+
+  const loadSavedGames = useCallback(() => {
+    setSavedGames(getSavedGames());
+  }, []);
+
+  useEffect(() => {
+    loadSavedGames();
+  }, [loadSavedGames]);
+
+  const handleLoadSaved = useCallback((game: SavedGame) => {
+    if (onLoadFEN) {
+      onLoadFEN(game.fen);
+    }
+  }, [onLoadFEN]);
+
+  const handleDeleteSaved = useCallback((timestamp: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteGame(timestamp);
+    loadSavedGames();
+  }, [loadSavedGames]);
 
   const handleParsePGN = useCallback(() => {
     if (parsedGames.length > 0 && onLoadPGN) {
@@ -108,6 +133,15 @@ export function LoadGameTab({ onLoadPGN, onLoadFEN, onLoadChessCom }: LoadGameTa
           onClick={() => setLoadSubTab('chesscom')}
         >
           Chess.com
+        </button>
+        <button
+          className={`sub-tab ${loadSubTab === 'saved' ? 'active' : ''}`}
+          onClick={() => {
+            setLoadSubTab('saved');
+            loadSavedGames();
+          }}
+        >
+          Saved
         </button>
       </div>
 
@@ -277,6 +311,39 @@ export function LoadGameTab({ onLoadPGN, onLoadFEN, onLoadChessCom }: LoadGameTa
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {loadSubTab === 'saved' && (
+        <div>
+          {savedGames.length === 0 ? (
+            <p style={{ color: '#71717a', textAlign: 'center', padding: '20px' }}>
+              No saved games yet
+            </p>
+          ) : (
+            <div className="chesscom-list">
+              {savedGames.map((game) => (
+                <div
+                  key={game.timestamp}
+                  className="chesscom-item"
+                  onClick={() => handleLoadSaved(game)}
+                >
+                  <div className="opponent">{game.name}</div>
+                  <div className="meta">{new Date(game.timestamp).toLocaleDateString()}</div>
+                  <button
+                    className="btn-delete"
+                    onClick={(e) => handleDeleteSaved(game.timestamp, e)}
+                    title="Delete"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button className="btn-modal-secondary" onClick={loadSavedGames}>
+            Refresh
+          </button>
         </div>
       )}
     </div>
