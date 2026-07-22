@@ -29,7 +29,7 @@ export function StatusBox({
         {statusText}
       </div>
       {showExplanation && explanation && (
-        <div className="explanation">{explanation}</div>
+        <div className="explanation" dangerouslySetInnerHTML={{ __html: explanation }} />
       )}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         {showActionButton && actionButtonText && (

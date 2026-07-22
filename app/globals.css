@@ -71,8 +71,14 @@ select:focus { outline: none; border-color: #e11d48; }
 
 #game-section { display: flex; flex-direction: column; flex-grow: 1; }
 
-#status-box { background-color: #18181b; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #e11d48; flex-shrink: 0; }
+.status-box { background-color: #18181b; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #e11d48; flex-shrink: 0; }
 #status-title { font-size: 1.05em; font-weight: 500; margin: 0; color: #f4f4f5; line-height: 1.4; }
+
+.explanation { 
+    color: #d4d4d8; font-size: 0.95em; text-align: right; direction: rtl; 
+    margin-top: 12px; border-top: 1px solid #27272a; padding-top: 12px; 
+    line-height: 1.6; font-weight: 400; background-color: #121214; padding: 10px; border-radius: 6px;
+}
 
 #move-explanation { 
     color: #d4d4d8; font-size: 0.95em; text-align: right; direction: rtl; 
@@ -701,6 +707,38 @@ h4 { margin: 0; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; 
   .link-desc {
     display: none;
   }
+}
+
+/* Board Square Classes */
+button.light {
+  background: #f0d9b5 !important;
+}
+
+button.dark {
+  background: #b58863 !important;
+}
+
+button.selected {
+  background: rgba(225, 29, 72, 0.5) !important;
+  box-shadow: inset 0 0 0 3px #e11d48;
+}
+
+button.legal-move {
+  position: relative;
+}
+
+button.legal-move::after {
+  content: '';
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+button.last-move {
+  background: rgba(202, 138, 4, 0.45) !important;
 }
 
 /* Position Editor */
