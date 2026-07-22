@@ -1,15 +1,15 @@
 import { Chess } from 'chess.js';
 
 // Chess piece types
-type PieceColor = 'w' | 'b';
-type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
+export type PieceColor = 'w' | 'b';
+export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 
-interface Piece {
+export interface Piece {
   type: PieceType;
   color: PieceColor;
 }
 
-interface Move {
+export interface Move {
   from: string;
   to: string;
   san: string;
@@ -21,7 +21,7 @@ interface Move {
 }
 
 // Game state
-interface GameState {
+export interface GameState {
   chess: Chess | null;
   playerSide: 'white' | 'black';
   myColor: PieceColor;
@@ -34,7 +34,7 @@ interface GameState {
 }
 
 // Engine
-interface EngineResult {
+export interface EngineResult {
   bestMove: string;
   san: string;
   explanation: string;
@@ -46,7 +46,7 @@ interface EngineResult {
 }
 
 // Openings
-interface Opening {
+export interface Opening {
   name: string;
   moves: string[];
   eco: string;
@@ -54,13 +54,13 @@ interface Opening {
 }
 
 // Chess.com API
-interface Archive {
+export interface Archive {
   url: string;
   year: number;
   month: number;
 }
 
-interface ChessComGame {
+export interface ChessComGame {
   pgn: string;
   opponent: string;
   date: string;
@@ -68,7 +68,7 @@ interface ChessComGame {
 }
 
 // PGN Parser
-interface ParsedGame {
+export interface ParsedGame {
   headers: Record<string, string>;
   moves: string[];
   fen: string;
@@ -76,7 +76,7 @@ interface ParsedGame {
 }
 
 // Board
-interface BoardProps {
+export interface BoardProps {
   fen: string;
   orientation: 'white' | 'black';
   selectedSquare: string | null;
@@ -87,7 +87,7 @@ interface BoardProps {
 }
 
 // Status
-interface StatusBoxProps {
+export interface StatusBoxProps {
   statusText: string;
   isThinking: boolean;
   isUserTurn: boolean;
@@ -99,12 +99,12 @@ interface StatusBoxProps {
 }
 
 // Move History
-interface MoveHistoryProps {
+export interface MoveHistoryProps {
   moves: string[];
 }
 
 // Toast
-interface ToastProps {
+export interface ToastProps {
   message: string;
   type: 'warning' | 'error' | '';
 }
