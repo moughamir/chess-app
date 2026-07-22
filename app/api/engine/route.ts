@@ -8,7 +8,7 @@ export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
-    const { fen, depth = 5, timeMs = 5000 } = await request.json();
+    const { fen, depth = 5, timeMs = 5000, style = 'balanced' } = await request.json();
 
     if (!fen) {
       return NextResponse.json({ error: 'FEN is required' }, { status: 400 });
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       const rawDepth = Number(depth) || 5;
       const clampedDepth = Math.min(Math.max(1, rawDepth), 8);
       resetNodeCount();
-      const customResult = getBestMove(fen, clampedDepth, Number(timeMs) || 5000);
+      const customResult = getBestMove(fen, clampedDepth, Number(timeMs) || 5000, style);
       result = {
         bestMove: customResult.bestMove?.from + customResult.bestMove?.to,
         san: customResult.bestMove?.san,
